@@ -1,11 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { AppSettings, DEFAULT_SETTINGS, GameState, Lineup } from '@/models/types';
+import { AppBackup, AppSettings, CustomPresets, DEFAULT_SETTINGS, GAME_RULE_PRESETS, GameState, Lineup } from '@/models/types';
 
 const KEYS = {
   LINEUPS: '@batter_up:lineups',
   GAMES: '@batter_up:games',
   SETTINGS: '@batter_up:settings',
   ACTIVE_GAME: '@batter_up:active_game',
+  PRESETS: '@batter_up:presets',
 };
 
 function generateId(): string {
@@ -110,4 +111,57 @@ export async function updateSettings(partial: Partial<AppSettings>): Promise<App
   const updated = { ...current, ...partial };
   await saveSettings(updated);
   return updated;
+}
+
+// ─── Game Type Presets ────────────────────────────────────────────────────────
+
+export async function getCustomPresets(): Promise<CustomPresets> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.PRESETS);
+    if (!raw) return { ...GAME_RULE_PRESETS };
+    const saved = JSON.parse(raw) as Partial<CustomPresets>;
+    return {
+      tball: { ...GAME_RULE_PRESETS.tball, ...saved.tball },
+      coach_pitch: { ...GAME_RULE_PRESETS.coach_pitch, ...saved.coach_pitch },
+      kid_pitch: { ...GAME_RULE_PRESETS.kid_pitch, ...saved.kid_pitch },
+      custom: { ...GAME_RULE_PRESETS.custom, ...saved.custom },
+    };
+  } catch {
+    return { ...GAME_RULE_PRESETS };
+  }
+}
+
+export async function saveCustomPresets(presets: CustomPresets): Promise<void> {
+  await AsyncStorage.setItem(KEYS.PRESETS, JSON.stringify(presets));
+}
+
+// ─── Backup & Restore ─────────────────────────────────────────────────────────
+
+export async function getBackupData(): Promise<AppBackup> {
+  const [lineups, games, settings, presets] = await Promise.all([
+    getLineups(),
+    getGames(),
+    getSettings(),
+    getCustomPresets(),
+  ]);
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    lineups,
+    games,
+    settings,
+    presets,
+  };
+}
+
+export async function restoreFromBackup(backup: AppBackup): Promise<void> {
+  if (!backup || backup.version !== 1) {
+    throw new Error('Invalid or incompatible backup file.');
+  }
+  await Promise.all([
+    AsyncStorage.setItem(KEYS.LINEUPS, JSON.stringify(backup.lineups ?? [])),
+    AsyncStorage.setItem(KEYS.GAMES, JSON.stringify(backup.games ?? [])),
+    AsyncStorage.setItem(KEYS.SETTINGS, JSON.stringify(backup.settings ?? DEFAULT_SETTINGS)),
+    AsyncStorage.setItem(KEYS.PRESETS, JSON.stringify(backup.presets ?? GAME_RULE_PRESETS)),
+  ]);
 }

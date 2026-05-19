@@ -60,6 +60,10 @@ Batter Up helps coaches:
 - Do NOT add a backend database — all data must stay in AsyncStorage
 - Do NOT use the 'uuid' package — use `Date.now().toString() + Math.random().toString(36).substr(2, 9)`
 - Restart the expo workflow only when dependencies change, not for code edits (HMR handles it)
+- expo-file-system, expo-sharing, expo-document-picker are installed for backup/restore
+- Alert.alert on web is unreliable for 3+ buttons — use Modal-based ConfirmModal instead
+- endGame() just dispatches END_GAME; navigation is handled by useEffect watching game.isComplete
+- Auto-end game is implemented in applyEndHalfInning: when nextInning > rules.innings, isComplete = true
 
 ## Pointers
 

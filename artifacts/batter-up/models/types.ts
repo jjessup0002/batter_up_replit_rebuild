@@ -137,6 +137,8 @@ export interface AppSettings {
   onboardingComplete: boolean;
 }
 
+export type CustomPresets = Record<GameType, Partial<GameRules>>;
+
 export const DEFAULT_SETTINGS: AppSettings = {
   mode: 'basic',
   defaultGameType: 'kid_pitch',
@@ -154,7 +156,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   onboardingComplete: false,
 };
 
-export const GAME_RULE_PRESETS: Record<GameType, Partial<GameRules>> = {
+export const GAME_RULE_PRESETS: CustomPresets = {
   tball: {
     mode: 'basic',
     gameType: 'tball',
@@ -212,3 +214,12 @@ export const GAME_RULE_PRESETS: Record<GameType, Partial<GameRules>> = {
     autoAdvanceBatter: true,
   },
 };
+
+export interface AppBackup {
+  version: number;
+  exportedAt: string;
+  lineups: Lineup[];
+  games: GameState[];
+  settings: AppSettings;
+  presets: CustomPresets;
+}

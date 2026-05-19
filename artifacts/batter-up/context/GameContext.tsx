@@ -11,6 +11,7 @@ type GameAction =
   | { type: 'END_HALF_INNING' }
   | { type: 'ADJUST_SCORE'; payload: { team: 'my' | 'opponent'; delta: number } }
   | { type: 'END_GAME' }
+  | { type: 'UPDATE_SETUP'; payload: Partial<GameSetup> }
   | { type: 'RESTORE'; payload: GameState };
 
 interface GameContextValue {
@@ -32,7 +33,8 @@ interface GameContextValue {
   undoLastEvent: () => void;
   endHalfInning: () => void;
   adjustScore: (team: 'my' | 'opponent', delta: number) => void;
-  endGame: () => GameState | null;
+  endGame: () => void;
+  updateGameSetup: (partial: Partial<GameSetup>) => void;
   restoreGame: (game: GameState) => void;
 }
 
@@ -55,7 +57,8 @@ const GameContext = createContext<GameContextValue>({
   undoLastEvent: () => {},
   endHalfInning: () => {},
   adjustScore: () => {},
-  endGame: () => null,
+  endGame: () => {},
+  updateGameSetup: () => {},
   restoreGame: () => {},
 });
 
@@ -89,12 +92,6 @@ function getCurrentPlayer(state: GameState) {
   return active[state.currentBatterIndex % active.length];
 }
 
-function getNextBatterIndex(state: GameState) {
-  const active = getActivePlayers(state);
-  if (active.length === 0) return 0;
-  return (state.currentBatterIndex + 1) % active.length;
-}
-
 function applyNextBatter(state: GameState): GameState {
   const active = getActivePlayers(state);
   if (active.length === 0) return state;
@@ -120,12 +117,10 @@ function applyNextBatter(state: GameState): GameState {
 function checkAutoAdvance(state: GameState, rules: GameRules): GameState {
   let next = state;
 
-  // Auto end half inning on outs
   if (next.outs >= rules.outsPerHalfInning) {
     next = applyEndHalfInning(next);
   }
 
-  // Auto end half inning on run limit
   if (rules.maxRunsPerHalfInning !== null && next.runsThisHalfInning >= rules.maxRunsPerHalfInning) {
     next = applyEndHalfInning(next);
   }
@@ -134,6 +129,10 @@ function checkAutoAdvance(state: GameState, rules: GameRules): GameState {
 }
 
 function applyEndHalfInning(state: GameState): GameState {
+  // If already complete, don't advance further
+  if (state.isComplete) return state;
+
+  const rules = state.setup.rules;
   const event = createEvent(
     state.id,
     '',
@@ -169,6 +168,9 @@ function applyEndHalfInning(state: GameState): GameState {
     nextHalf = 'top';
   }
 
+  // Auto-end game when all innings are complete
+  const gameOver = nextInning > rules.innings;
+
   return {
     ...state,
     currentInning: nextInning,
@@ -180,6 +182,8 @@ function applyEndHalfInning(state: GameState): GameState {
     runsThisHalfInning: 0,
     inningScores: scores,
     events: [...state.events, event],
+    isComplete: gameOver,
+    completedAt: gameOver ? new Date().toISOString() : state.completedAt,
   };
 }
 
@@ -316,14 +320,11 @@ function gameReducer(state: GameState | null, action: GameAction): GameState | n
 
     case 'UNDO': {
       if (state.events.length === 0) return state;
-      // Simple undo: remove last event and recompute critical state from scratch
-      // For simplicity, we remove the last event and reduce balls/strikes/outs
       const newEvents = state.events.slice(0, -1);
       const lastEvent = state.events[state.events.length - 1];
 
       let next = { ...state, events: newEvents };
 
-      // Reverse the effect of the last event on simple counters
       switch (lastEvent.eventType) {
         case 'ball':
           next = { ...next, balls: Math.max(0, state.balls - 1) };
@@ -349,7 +350,7 @@ function gameReducer(state: GameState | null, action: GameAction): GameState | n
         case 'half_inning_ended': {
           const prevHalf: HalfInning = state.halfInning === 'top' ? 'bottom' : 'top';
           const prevInning = prevHalf === 'bottom' ? state.currentInning : state.currentInning - 1;
-          next = { ...next, halfInning: prevHalf, currentInning: Math.max(1, prevInning) };
+          next = { ...next, halfInning: prevHalf, currentInning: Math.max(1, prevInning), isComplete: false, completedAt: undefined };
           break;
         }
       }
@@ -370,6 +371,9 @@ function gameReducer(state: GameState | null, action: GameAction): GameState | n
     case 'END_GAME':
       return { ...state, isComplete: true, completedAt: new Date().toISOString() };
 
+    case 'UPDATE_SETUP':
+      return { ...state, setup: { ...state.setup, ...action.payload } };
+
     default:
       return state;
   }
@@ -379,7 +383,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [game, dispatch] = useReducer(gameReducer, null);
 
   useEffect(() => {
-    if (game) {
+    if (game && !game.isComplete) {
       saveActiveGame(game).catch(() => {});
     }
   }, [game]);
@@ -412,8 +416,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const endGame = useCallback(() => {
     dispatch({ type: 'END_GAME' });
     clearActiveGame().catch(() => {});
-    return game ? { ...game, isComplete: true, completedAt: new Date().toISOString() } : null;
-  }, [game]);
+  }, []);
+  const updateGameSetup = useCallback((partial: Partial<GameSetup>) => {
+    dispatch({ type: 'UPDATE_SETUP', payload: partial });
+  }, []);
   const restoreGame = useCallback((g: GameState) => {
     dispatch({ type: 'RESTORE', payload: g });
   }, []);
@@ -425,7 +431,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       recordOut, recordStrikeout, recordWalk, recordHitByPitch,
       recordRunScored, recordRbi, recordEvent,
       nextBatter, prevBatter, undoLastEvent, endHalfInning,
-      adjustScore, endGame, restoreGame,
+      adjustScore, endGame, updateGameSetup, restoreGame,
     }}>
       {children}
     </GameContext.Provider>

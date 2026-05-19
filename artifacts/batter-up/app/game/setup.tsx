@@ -17,7 +17,7 @@ import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useApp } from '@/context/AppContext';
 import { useGame } from '@/context/GameContext';
-import { AppMode, GAME_RULE_PRESETS, GameRules, GameSetup, GameType, Lineup } from '@/models/types';
+import { AppMode, GameRules, GameSetup, GameType, Lineup } from '@/models/types';
 import { getLineups, markLineupUsed } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
@@ -26,7 +26,7 @@ export default function GameSetupScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { lineupId } = useLocalSearchParams<{ lineupId?: string }>();
-  const { settings } = useApp();
+  const { settings, presets } = useApp();
   const { startGame } = useGame();
 
   const [lineups, setLineups] = useState<Lineup[]>([]);
@@ -60,10 +60,11 @@ export default function GameSetupScreen() {
     getLineups().then(setLineups);
   }, []);
 
+  // Apply a preset (using user-customized presets)
   const applyPreset = (type: GameType) => {
     setGameType(type);
-    const preset = GAME_RULE_PRESETS[type];
-    setRules((prev) => ({ ...prev, ...preset }));
+    const preset = presets[type];
+    setRules((prev) => ({ ...prev, ...preset, gameType: type }));
     if (preset.mode) setMode(preset.mode);
   };
 
@@ -71,9 +72,7 @@ export default function GameSetupScreen() {
   const activePlayers = selectedLineup?.players.filter((p) => p.isActive) ?? [];
 
   const handleStart = async () => {
-    if (!selectedLineupId) {
-      return;
-    }
+    if (!selectedLineupId) return;
     const lineup = lineups.find((l) => l.id === selectedLineupId);
     if (!lineup) return;
 
@@ -172,7 +171,6 @@ export default function GameSetupScreen() {
         {/* Game info */}
         <Card style={{ marginBottom: 14 }}>
           <ThemedText variant="h3" style={{ marginBottom: 12 }}>Game Info</ThemedText>
-
           <ThemedText variant="label" style={{ marginBottom: 6 }}>Opponent (optional)</ThemedText>
           <TextInput
             style={[styles.input, { color: colors.foreground, borderColor: colors.border }]}
@@ -181,7 +179,6 @@ export default function GameSetupScreen() {
             value={opponentName}
             onChangeText={setOpponentName}
           />
-
           <View style={styles.switchRow}>
             <View>
               <ThemedText variant="body">Home Team</ThemedText>
@@ -193,25 +190,38 @@ export default function GameSetupScreen() {
 
         {/* Game type presets */}
         <Card style={{ marginBottom: 14 }}>
-          <ThemedText variant="h3" style={{ marginBottom: 10 }}>Game Type</ThemedText>
+          <View style={styles.sectionRow}>
+            <ThemedText variant="h3">Game Type</ThemedText>
+            <TouchableOpacity onPress={() => router.push('/settings')}>
+              <ThemedText variant="caption" color={colors.primary}>Edit presets</ThemedText>
+            </TouchableOpacity>
+          </View>
           <View style={styles.presetGrid}>
             {([
               { id: 'tball', label: 'T-Ball' },
               { id: 'coach_pitch', label: 'Coach Pitch' },
               { id: 'kid_pitch', label: 'Kid Pitch' },
               { id: 'custom', label: 'Custom' },
-            ] as { id: GameType; label: string }[]).map((g) => (
-              <TouchableOpacity
-                key={g.id}
-                style={[
-                  styles.presetBtn,
-                  { backgroundColor: gameType === g.id ? colors.primary : colors.muted, borderColor: gameType === g.id ? colors.primary : colors.border },
-                ]}
-                onPress={() => applyPreset(g.id)}
-              >
-                <ThemedText variant="label" color={gameType === g.id ? '#fff' : colors.foreground}>{g.label}</ThemedText>
-              </TouchableOpacity>
-            ))}
+            ] as { id: GameType; label: string }[]).map((g) => {
+              const p = presets[g.id];
+              return (
+                <TouchableOpacity
+                  key={g.id}
+                  style={[
+                    styles.presetBtn,
+                    { backgroundColor: gameType === g.id ? colors.primary : colors.muted, borderColor: gameType === g.id ? colors.primary : colors.border },
+                  ]}
+                  onPress={() => applyPreset(g.id)}
+                >
+                  <ThemedText variant="label" color={gameType === g.id ? '#fff' : colors.foreground}>{g.label}</ThemedText>
+                  {p.innings !== undefined && (
+                    <ThemedText variant="caption" color={gameType === g.id ? 'rgba(255,255,255,0.7)' : colors.mutedForeground}>
+                      {p.innings} inn
+                    </ThemedText>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </Card>
 
@@ -227,7 +237,7 @@ export default function GameSetupScreen() {
         {showAdvanced && (
           <Card style={{ marginBottom: 14 }}>
             {[
-              { label: 'Innings', key: 'innings' as const, min: 1, max: 9 },
+              { label: 'Innings', key: 'innings' as const, min: 1, max: 12 },
               { label: 'Outs per half inning', key: 'outsPerHalfInning' as const, min: 1, max: 6 },
             ].map((field) => (
               <View key={field.key} style={styles.ruleRow}>
@@ -343,7 +353,7 @@ const styles = StyleSheet.create({
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, fontFamily: 'Inter_400Regular' },
   switchRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14 },
   presetGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  presetBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1 },
+  presetBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1, alignItems: 'center' },
   advancedToggle: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16, borderWidth: 1, borderRadius: 12, marginBottom: 14 },
   ruleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 12 },

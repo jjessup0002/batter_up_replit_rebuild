@@ -3,11 +3,13 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Modal,
   Platform,
+  ScrollView,
   StyleSheet,
+  Switch,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
@@ -15,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useGame } from '@/context/GameContext';
-import { EventType, Player } from '@/models/types';
+import { EventType, GameRules, Player } from '@/models/types';
 import { saveCompletedGame } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
@@ -37,18 +39,303 @@ function CountDots({ count, max, color }: { count: number; max: number; color: s
   );
 }
 
+// ─── Confirm Modal ────────────────────────────────────────────────────────────
+
+function ConfirmModal({
+  visible,
+  title,
+  message,
+  confirmLabel,
+  confirmDestructive,
+  onConfirm,
+  onCancel,
+}: {
+  visible: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  confirmDestructive?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const colors = useColors();
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={confirmStyles.overlay}>
+        <View style={[confirmStyles.box, { backgroundColor: colors.card }]}>
+          <ThemedText variant="h3" style={{ marginBottom: 8 }}>{title}</ThemedText>
+          <ThemedText variant="body" style={{ marginBottom: 24, color: colors.mutedForeground }}>{message}</ThemedText>
+          <View style={confirmStyles.buttons}>
+            <TouchableOpacity
+              style={[confirmStyles.btn, { backgroundColor: colors.muted, flex: 1 }]}
+              onPress={onCancel}
+            >
+              <ThemedText variant="body" style={{ fontWeight: '600' }}>Cancel</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[confirmStyles.btn, { backgroundColor: confirmDestructive ? colors.destructive : colors.primary, flex: 1 }]}
+              onPress={onConfirm}
+            >
+              <ThemedText variant="body" color="#fff" style={{ fontWeight: '700' }}>{confirmLabel}</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const confirmStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  box: { width: '100%', borderRadius: 16, padding: 24, maxWidth: 360 },
+  buttons: { flexDirection: 'row', gap: 12 },
+  btn: { paddingVertical: 14, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+});
+
+// ─── In-Game Settings Modal ───────────────────────────────────────────────────
+
+function GameSettingsModal({
+  visible,
+  game,
+  onSave,
+  onClose,
+}: {
+  visible: boolean;
+  game: NonNullable<ReturnType<typeof useGame>['game']>;
+  onSave: (opponentName: string, rules: Partial<GameRules>) => void;
+  onClose: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const [opponentName, setOpponentName] = useState(game.setup.opponentName);
+  const [innings, setInnings] = useState(game.setup.rules.innings);
+  const [outsPerHalf, setOutsPerHalf] = useState(game.setup.rules.outsPerHalfInning);
+  const [runLimit, setRunLimit] = useState(game.setup.rules.maxRunsPerHalfInning);
+  const [ballsForWalk, setBallsForWalk] = useState(game.setup.rules.ballsForWalk);
+  const [strikesForK, setStrikesForK] = useState(game.setup.rules.strikesForStrikeout);
+
+  const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
+
+  useEffect(() => {
+    if (visible) {
+      setOpponentName(game.setup.opponentName);
+      setInnings(game.setup.rules.innings);
+      setOutsPerHalf(game.setup.rules.outsPerHalfInning);
+      setRunLimit(game.setup.rules.maxRunsPerHalfInning);
+      setBallsForWalk(game.setup.rules.ballsForWalk);
+      setStrikesForK(game.setup.rules.strikesForStrikeout);
+    }
+  }, [visible]);
+
+  const handleSave = () => {
+    onSave(opponentName, {
+      innings,
+      outsPerHalfInning: outsPerHalf,
+      maxRunsPerHalfInning: runLimit,
+      ballsForWalk,
+      strikesForStrikeout: strikesForK,
+    });
+    onClose();
+  };
+
+  const Stepper = ({
+    value,
+    onChange,
+    min = 1,
+    max = 20,
+    label,
+  }: {
+    value: number;
+    onChange: (v: number) => void;
+    min?: number;
+    max?: number;
+    label: string;
+  }) => (
+    <View style={gsStyles.settingRow}>
+      <ThemedText variant="body" style={{ flex: 1 }}>{label}</ThemedText>
+      <View style={gsStyles.stepper}>
+        <TouchableOpacity
+          style={[gsStyles.stepBtn, { borderColor: colors.border }]}
+          onPress={() => onChange(Math.max(min, value - 1))}
+        >
+          <Feather name="minus" size={16} color={colors.foreground} />
+        </TouchableOpacity>
+        <ThemedText variant="body" style={{ minWidth: 30, textAlign: 'center', fontWeight: '700' }}>
+          {value}
+        </ThemedText>
+        <TouchableOpacity
+          style={[gsStyles.stepBtn, { borderColor: colors.border }]}
+          onPress={() => onChange(Math.min(max, value + 1))}
+        >
+          <Feather name="plus" size={16} color={colors.foreground} />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const isAdvanced = game.setup.rules.mode === 'advanced';
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={gsStyles.overlay} activeOpacity={1} onPress={onClose}>
+        <View style={[gsStyles.sheet, { backgroundColor: colors.card, paddingBottom: botPad + 20 }]}>
+          <View style={[gsStyles.handle, { backgroundColor: colors.border }]} />
+          <View style={gsStyles.sheetHeader}>
+            <ThemedText variant="h3">Game Settings</ThemedText>
+            <TouchableOpacity onPress={onClose}>
+              <Feather name="x" size={22} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Opponent Name */}
+            <ThemedText variant="label" style={[gsStyles.sectionLabel, { color: colors.mutedForeground }]}>OPPONENT</ThemedText>
+            <TextInput
+              style={[gsStyles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+              value={opponentName}
+              onChangeText={setOpponentName}
+              placeholder="Opponent team name"
+              placeholderTextColor={colors.mutedForeground}
+            />
+
+            {/* Rules */}
+            <ThemedText variant="label" style={[gsStyles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}>RULES</ThemedText>
+            <View style={[gsStyles.rulesCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Stepper
+                label="Total Innings"
+                value={innings}
+                onChange={setInnings}
+                min={Math.max(game.currentInning, 1)}
+                max={12}
+              />
+              <Stepper
+                label="Outs per Half Inning"
+                value={outsPerHalf}
+                onChange={setOutsPerHalf}
+                min={1}
+                max={6}
+              />
+
+              {/* Run limit */}
+              <View style={gsStyles.settingRow}>
+                <View style={{ flex: 1 }}>
+                  <ThemedText variant="body">Run Limit per Inning</ThemedText>
+                  {runLimit !== null && (
+                    <ThemedText variant="caption" style={{ color: colors.mutedForeground }}>{runLimit} runs max</ThemedText>
+                  )}
+                </View>
+                <Switch
+                  value={runLimit !== null}
+                  onValueChange={(v) => setRunLimit(v ? 6 : null)}
+                  trackColor={{ true: colors.primary }}
+                />
+              </View>
+              {runLimit !== null && (
+                <Stepper
+                  label="Max runs"
+                  value={runLimit}
+                  onChange={setRunLimit}
+                  min={1}
+                  max={20}
+                />
+              )}
+
+              {/* Advanced-only */}
+              {isAdvanced && ballsForWalk !== null && (
+                <Stepper
+                  label="Balls for Walk"
+                  value={ballsForWalk}
+                  onChange={setBallsForWalk}
+                  min={1}
+                  max={6}
+                />
+              )}
+              {isAdvanced && strikesForK !== null && (
+                <Stepper
+                  label="Strikes for Strikeout"
+                  value={strikesForK}
+                  onChange={setStrikesForK}
+                  min={1}
+                  max={6}
+                />
+              )}
+            </View>
+
+            {/* Score adjustment */}
+            <ThemedText variant="label" style={[gsStyles.sectionLabel, { color: colors.mutedForeground, marginTop: 16 }]}>SCORE CORRECTION</ThemedText>
+            <ThemedText variant="caption" style={{ color: colors.mutedForeground, marginBottom: 8 }}>
+              Use the score buttons on the main screen to adjust the score directly.
+            </ThemedText>
+
+            <Button title="Save Changes" fullWidth size="lg" onPress={handleSave} style={{ marginTop: 8 }} />
+          </ScrollView>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+
+const gsStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '90%' },
+  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 16 },
+  sheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 },
+  sectionLabel: { fontWeight: '600', letterSpacing: 0.5, marginBottom: 8 },
+  input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, fontFamily: 'Inter_400Regular' },
+  rulesCard: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingBottom: 8 },
+  settingRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'transparent' },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stepBtn: { width: 32, height: 32, borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+});
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
 export default function LiveGameScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { game, recordBall, recordStrike, recordFoul, recordHit, recordOut, recordWalk,
-          recordHitByPitch, recordRunScored, recordEvent, nextBatter, prevBatter,
-          undoLastEvent, endHalfInning, adjustScore, endGame } = useGame();
+  const {
+    game, recordBall, recordStrike, recordFoul, recordHit, recordOut, recordWalk,
+    recordHitByPitch, recordRunScored, recordEvent, nextBatter, prevBatter,
+    undoLastEvent, endHalfInning, adjustScore, endGame, updateGameSetup,
+  } = useGame();
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showEndInnConfirm, setShowEndInnConfirm] = useState(false);
+  const [showEndGameConfirm, setShowEndGameConfirm] = useState(false);
+  const [showGameSettings, setShowGameSettings] = useState(false);
+  const [saving, setSaving] = useState(false);
   const listRef = useRef<FlatList>(null);
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
+
+  // When game becomes complete (via End Game button OR auto-end after max innings),
+  // save the completed game and navigate to summary.
+  useEffect(() => {
+    if (game?.isComplete && !saving) {
+      setSaving(true);
+      saveCompletedGame(game)
+        .then(() => {
+          router.replace({ pathname: '/game/summary', params: { gameId: game.id } });
+        })
+        .catch(() => {
+          router.replace({ pathname: '/game/summary', params: { gameId: game.id } });
+        });
+    }
+  }, [game?.isComplete]);
+
+  const haptic = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+  const lightHaptic = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+
+  // Scroll to current batter
+  useEffect(() => {
+    if (!game) return;
+    const activePlayers = game.setup.lineupSnapshot;
+    const idx = game.currentBatterIndex % activePlayers.length;
+    setTimeout(() => {
+      listRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.3 });
+    }, 100);
+  }, [game?.currentBatterIndex]);
 
   if (!game) {
     return (
@@ -66,54 +353,28 @@ export default function LiveGameScreen() {
   const currentBatter = activePlayers[game.currentBatterIndex % activePlayers.length];
   const onDeckIndex = (game.currentBatterIndex + 1) % activePlayers.length;
   const onDeckBatter = activePlayers[onDeckIndex];
-
   const isBasic = rules.mode === 'basic';
-
-  // Scroll to current batter
-  useEffect(() => {
-    const idx = game.currentBatterIndex % activePlayers.length;
-    setTimeout(() => {
-      listRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.3 });
-    }, 100);
-  }, [game.currentBatterIndex, activePlayers.length]);
-
-  const haptic = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
-  const lightHaptic = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-
-  const handleEndHalfInning = () => {
-    Alert.alert(
-      'End Half-Inning?',
-      `End the ${game.halfInning === 'top' ? 'top' : 'bottom'} of inning ${game.currentInning}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'End It', onPress: () => { haptic(); endHalfInning(); } },
-      ]
-    );
-  };
-
-  const handleEndGame = () => {
-    Alert.alert(
-      'End Game?',
-      'Are you sure you want to end the game?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'End Game',
-          style: 'destructive',
-          onPress: async () => {
-            haptic();
-            const finalGame = endGame();
-            if (finalGame) {
-              await saveCompletedGame(finalGame);
-              router.replace({ pathname: '/game/summary', params: { gameId: finalGame.id } });
-            }
-          },
-        },
-      ]
-    );
-  };
-
   const halfLabel = game.halfInning === 'top' ? '▲' : '▼';
+
+  const handleEndInnConfirmed = () => {
+    haptic();
+    setShowEndInnConfirm(false);
+    endHalfInning();
+  };
+
+  const handleEndGameConfirmed = () => {
+    haptic();
+    setShowEndGameConfirm(false);
+    endGame();
+    // Navigation handled by the useEffect above
+  };
+
+  const handleSaveGameSettings = (opponentName: string, ruleChanges: Partial<typeof rules>) => {
+    updateGameSetup({
+      opponentName,
+      rules: { ...rules, ...ruleChanges },
+    });
+  };
 
   const renderBatterRow = ({ item, index }: { item: Player; index: number }) => {
     const isCurrentBatter = index === game.currentBatterIndex % activePlayers.length;
@@ -123,11 +384,7 @@ export default function LiveGameScreen() {
         style={[
           styles.batterRow,
           {
-            backgroundColor: isCurrentBatter
-              ? colors.primary
-              : isOnDeck
-              ? colors.secondary
-              : colors.card,
+            backgroundColor: isCurrentBatter ? colors.primary : isOnDeck ? colors.secondary : colors.card,
             borderLeftWidth: isCurrentBatter ? 4 : 0,
             borderLeftColor: colors.accent,
           },
@@ -165,11 +422,14 @@ export default function LiveGameScreen() {
       {/* Header scorecard */}
       <View style={[styles.scorecard, { paddingTop: topPad + 8, backgroundColor: colors.navy }]}>
         <View style={styles.scorecardRow}>
-          {/* Inning */}
+          {/* Inning + settings gear */}
           <View style={styles.inningBlock}>
             <ThemedText variant="caption" color="rgba(255,255,255,0.6)" style={{ textAlign: 'center' }}>INNING</ThemedText>
-            <ThemedText variant="h1" color="#fff" style={{ textAlign: 'center', fontSize: 32 }}>
+            <ThemedText variant="h1" color="#fff" style={{ textAlign: 'center', fontSize: 30 }}>
               {halfLabel} {game.currentInning}
+            </ThemedText>
+            <ThemedText variant="caption" color="rgba(255,255,255,0.5)" style={{ textAlign: 'center' }}>
+              of {rules.innings}
             </ThemedText>
           </View>
 
@@ -193,6 +453,14 @@ export default function LiveGameScreen() {
               </ThemedText>
             </View>
           </View>
+
+          {/* Settings button */}
+          <TouchableOpacity
+            style={styles.gearBtn}
+            onPress={() => setShowGameSettings(true)}
+          >
+            <Feather name="settings" size={20} color="rgba(255,255,255,0.7)" />
+          </TouchableOpacity>
         </View>
 
         {/* Count strip (Advanced Mode) */}
@@ -262,7 +530,6 @@ export default function LiveGameScreen() {
       {/* Action buttons */}
       <View style={[styles.actionsArea, { backgroundColor: colors.card, borderColor: colors.border }]}>
         {isBasic ? (
-          // Basic mode buttons
           <View style={styles.basicActions}>
             <View style={styles.actionRow}>
               <ActionButton label="Hit" icon="circle" color={colors.success} onPress={() => { haptic(); recordHit(); }} />
@@ -272,12 +539,11 @@ export default function LiveGameScreen() {
             </View>
             <View style={styles.actionRow}>
               <ActionButton label="Next" icon="chevrons-right" color={colors.primary} onPress={() => { lightHaptic(); nextBatter(); }} />
-              <ActionButton label="End Inning" icon="skip-forward" color={colors.mutedForeground} onPress={handleEndHalfInning} />
+              <ActionButton label="End Inning" icon="skip-forward" color={colors.mutedForeground} onPress={() => setShowEndInnConfirm(true)} />
               <ActionButton label="Undo" icon="corner-up-left" color={colors.mutedForeground} onPress={() => { lightHaptic(); undoLastEvent(); }} />
             </View>
           </View>
         ) : (
-          // Advanced mode buttons
           <View style={styles.advancedActions}>
             <View style={styles.actionRow}>
               <ActionButton label="Ball" icon="circle" color="#2E7D32" onPress={() => { haptic(); recordBall(); }} />
@@ -293,7 +559,7 @@ export default function LiveGameScreen() {
             </View>
             <View style={styles.actionRow}>
               <ActionButton label="Next" icon="chevrons-right" color={colors.primary} onPress={() => { lightHaptic(); nextBatter(); }} />
-              <ActionButton label="End Inn." icon="skip-forward" color={colors.mutedForeground} onPress={handleEndHalfInning} />
+              <ActionButton label="End Inn." icon="skip-forward" color={colors.mutedForeground} onPress={() => setShowEndInnConfirm(true)} />
               <ActionButton label="Undo" icon="corner-up-left" color={colors.mutedForeground} onPress={() => { lightHaptic(); undoLastEvent(); }} />
               <ActionButton label="More" icon="more-horizontal" color={colors.mutedForeground} onPress={() => setShowMoreMenu(true)} />
             </View>
@@ -328,12 +594,49 @@ export default function LiveGameScreen() {
         onScrollToIndexFailed={() => {}}
       />
 
-      {/* End game button */}
+      {/* End game bar */}
       <View style={[styles.endGameBar, { bottom: botPad, borderTopColor: colors.border, backgroundColor: colors.card }]}>
-        <Button title="End Game" variant="outline" size="sm" onPress={handleEndGame} style={{ flex: 1 }} />
+        <Button
+          title="End Game"
+          variant="outline"
+          size="sm"
+          onPress={() => setShowEndGameConfirm(true)}
+          style={{ flex: 1 }}
+        />
       </View>
 
-      {/* More menu modal */}
+      {/* ─── Modals ─── */}
+
+      {/* End Inning Confirm */}
+      <ConfirmModal
+        visible={showEndInnConfirm}
+        title="End Half-Inning?"
+        message={`End the ${game.halfInning === 'top' ? 'top' : 'bottom'} of inning ${game.currentInning}?`}
+        confirmLabel="End Inning"
+        onConfirm={handleEndInnConfirmed}
+        onCancel={() => setShowEndInnConfirm(false)}
+      />
+
+      {/* End Game Confirm */}
+      <ConfirmModal
+        visible={showEndGameConfirm}
+        title="End Game?"
+        message={`Final score: ${game.myScore}–${game.opponentScore}. This will save the game and go to the summary.`}
+        confirmLabel="End Game"
+        confirmDestructive
+        onConfirm={handleEndGameConfirmed}
+        onCancel={() => setShowEndGameConfirm(false)}
+      />
+
+      {/* In-Game Settings */}
+      <GameSettingsModal
+        visible={showGameSettings}
+        game={game}
+        onSave={handleSaveGameSettings}
+        onClose={() => setShowGameSettings(false)}
+      />
+
+      {/* More menu */}
       <Modal visible={showMoreMenu} transparent animationType="slide" onRequestClose={() => setShowMoreMenu(false)}>
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowMoreMenu(false)}>
           <View style={[styles.moreSheet, { backgroundColor: colors.card, paddingBottom: botPad + 20 }]}>
@@ -392,11 +695,12 @@ function ActionButton({ label, icon, color, onPress }: { label: string; icon: st
 const styles = StyleSheet.create({
   container: { flex: 1 },
   noGame: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scorecard: { paddingHorizontal: 20, paddingBottom: 12 },
+  scorecard: { paddingHorizontal: 16, paddingBottom: 12 },
   scorecardRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
-  inningBlock: { flex: 1 },
-  scoreBlock: { flex: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  inningBlock: { width: 72 },
+  scoreBlock: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
   scoreTeam: { alignItems: 'center', flex: 1 },
+  gearBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   countStrip: { flexDirection: 'row', justifyContent: 'space-around', paddingTop: 8, paddingBottom: 4 },
   countItem: { alignItems: 'center', gap: 4 },
   currentBatterBanner: {
