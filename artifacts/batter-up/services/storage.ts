@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
 import {
   AppBackup, AppSettings, CustomPresets, DEFAULT_SETTINGS,
-  GAME_RULE_PRESETS, GameState, Lineup, ScheduledGame,
+  GAME_RULE_PRESETS, GameState, Lineup, ScheduledGame, Season,
 } from '@/models/types';
 
 const KEYS = {
@@ -12,6 +12,7 @@ const KEYS = {
   ACTIVE_GAME: '@batter_up:active_game',
   PRESETS: '@batter_up:presets',
   SCHEDULE: '@batter_up:schedule',
+  SEASONS: '@batter_up:seasons',
 };
 
 const AUTO_BACKUP_FILENAME = 'batter-up-auto-backup.json';
@@ -132,6 +133,34 @@ export async function saveCustomPresets(presets: CustomPresets): Promise<void> {
   await AsyncStorage.setItem(KEYS.PRESETS, JSON.stringify(presets));
 }
 
+// ─── Seasons ──────────────────────────────────────────────────────────────────
+
+export async function getSeasons(): Promise<Season[]> {
+  try {
+    const raw = await AsyncStorage.getItem(KEYS.SEASONS);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+export async function saveSeason(season: Season): Promise<void> {
+  const seasons = await getSeasons();
+  const idx = seasons.findIndex((s) => s.id === season.id);
+  if (idx >= 0) seasons[idx] = season; else seasons.push(season);
+  await AsyncStorage.setItem(KEYS.SEASONS, JSON.stringify(seasons));
+}
+
+export async function deleteSeason(id: string): Promise<void> {
+  const seasons = await getSeasons();
+  await AsyncStorage.setItem(KEYS.SEASONS, JSON.stringify(seasons.filter((s) => s.id !== id)));
+}
+
+export async function setActiveSeason(id: string | null): Promise<void> {
+  const seasons = await getSeasons();
+  const updated = seasons.map((s) => ({ ...s, isActive: s.id === id }));
+  await AsyncStorage.setItem(KEYS.SEASONS, JSON.stringify(updated));
+  await updateSettings({ activeSeasonId: id ?? undefined });
+}
+
 // ─── Schedule ─────────────────────────────────────────────────────────────────
 
 export async function getSchedule(): Promise<ScheduledGame[]> {
@@ -171,6 +200,14 @@ export async function getNextScheduledGame(): Promise<ScheduledGame | null> {
   return upcoming[0] ?? null;
 }
 
+export async function getTodaysScheduledGames(): Promise<ScheduledGame[]> {
+  const schedule = await getSchedule();
+  const today = new Date().toISOString().slice(0, 10);
+  return schedule
+    .filter((s) => s.status === 'upcoming' && s.date === today)
+    .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''));
+}
+
 // ─── Review tracking ──────────────────────────────────────────────────────────
 
 export async function incrementGameSessions(): Promise<number> {
@@ -184,7 +221,6 @@ export function shouldShowReviewPrompt(s: AppSettings): boolean {
   if (s.hasClickedReview) return false;
   const count = s.gameSessionsCompleted ?? 0;
   if (count <= 0) return false;
-  // Show at 3rd game, then every 4 games after each decline
   if (count === 3) return true;
   if (s.reviewDeclineCount > 0 && count > 3) {
     return (count - 3) % 4 === 0;
@@ -195,10 +231,10 @@ export function shouldShowReviewPrompt(s: AppSettings): boolean {
 // ─── Backup ───────────────────────────────────────────────────────────────────
 
 export async function getBackupData(): Promise<AppBackup> {
-  const [lineups, games, settings, presets, schedule] = await Promise.all([
-    getLineups(), getGames(), getSettings(), getCustomPresets(), getSchedule(),
+  const [lineups, games, settings, presets, schedule, seasons] = await Promise.all([
+    getLineups(), getGames(), getSettings(), getCustomPresets(), getSchedule(), getSeasons(),
   ]);
-  return { version: 1, exportedAt: new Date().toISOString(), lineups, games, settings, presets, schedule };
+  return { version: 1, exportedAt: new Date().toISOString(), lineups, games, settings, presets, schedule, seasons };
 }
 
 export async function restoreFromBackup(backup: AppBackup): Promise<void> {
@@ -209,6 +245,7 @@ export async function restoreFromBackup(backup: AppBackup): Promise<void> {
     AsyncStorage.setItem(KEYS.SETTINGS, JSON.stringify(backup.settings ?? DEFAULT_SETTINGS)),
     AsyncStorage.setItem(KEYS.PRESETS, JSON.stringify(backup.presets ?? GAME_RULE_PRESETS)),
     AsyncStorage.setItem(KEYS.SCHEDULE, JSON.stringify(backup.schedule ?? [])),
+    AsyncStorage.setItem(KEYS.SEASONS, JSON.stringify(backup.seasons ?? [])),
   ]);
 }
 

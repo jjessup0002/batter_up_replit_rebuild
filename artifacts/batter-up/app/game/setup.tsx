@@ -17,8 +17,8 @@ import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useApp } from '@/context/AppContext';
 import { useGame } from '@/context/GameContext';
-import { AppMode, GameRules, GameSetup, GameType, Lineup } from '@/models/types';
-import { getLineups, getSchedule, markLineupUsed } from '@/services/storage';
+import { AppMode, GameRules, GameSetup, GameType, Lineup, Season, SEASON_TYPE_LABELS } from '@/models/types';
+import { getLineups, getSeasons, markLineupUsed } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
 export default function GameSetupScreen() {
@@ -32,6 +32,7 @@ export default function GameSetupScreen() {
   const { startGame } = useGame();
 
   const [lineups, setLineups] = useState<Lineup[]>([]);
+  const [seasons, setSeasons] = useState<Season[]>([]);
   const [selectedLineupId, setSelectedLineupId] = useState(lineupId ?? '');
   const [opponentName, setOpponentName] = useState(opponent ?? '');
   const [isHome, setIsHome] = useState(false);
@@ -39,6 +40,7 @@ export default function GameSetupScreen() {
   const [mode, setMode] = useState<AppMode>(settings.mode);
   const [gameType, setGameType] = useState<GameType>(settings.defaultGameType);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string>(settings.activeSeasonId ?? '');
   const [rules, setRules] = useState<GameRules>({
     mode: settings.mode,
     gameType: settings.defaultGameType,
@@ -60,10 +62,12 @@ export default function GameSetupScreen() {
   const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
   useEffect(() => {
-    getLineups().then(setLineups);
+    Promise.all([getLineups(), getSeasons()]).then(([ls, ss]) => {
+      setLineups(ls);
+      setSeasons(ss);
+    });
   }, []);
 
-  // If coming from schedule, pre-fill opponent
   useEffect(() => {
     if (opponent) setOpponentName(opponent);
   }, [opponent]);
@@ -77,6 +81,7 @@ export default function GameSetupScreen() {
 
   const selectedLineup = lineups.find((l) => l.id === selectedLineupId);
   const activePlayers = selectedLineup?.players.filter((p) => p.isActive) ?? [];
+  const selectedSeason = seasons.find((s) => s.id === selectedSeasonId);
 
   const handleStart = async () => {
     if (!selectedLineupId) return;
@@ -96,10 +101,17 @@ export default function GameSetupScreen() {
       date: new Date().toISOString(),
       isDemoMode: isDemoMode || undefined,
       scheduledGameId: scheduledGameId || undefined,
+      seasonId: selectedSeasonId || undefined,
     };
 
     startGame(setup);
     router.replace('/game/live');
+  };
+
+  const seasonTypeColor = (type: Season['type']) => {
+    if (type === 'tournament') return { bg: '#FFF8E1', fg: '#E65100' };
+    if (type === 'preseason') return { bg: colors.muted, fg: colors.mutedForeground };
+    return { bg: colors.secondary, fg: colors.primary };
   };
 
   return (
@@ -212,6 +224,71 @@ export default function GameSetupScreen() {
           </View>
         </Card>
 
+        {/* Season / Tournament — only show if there are seasons */}
+        {seasons.length > 0 && !isDemoMode && (
+          <Card style={{ marginBottom: 14 }}>
+            <View style={styles.sectionRow}>
+              <ThemedText variant="h3">Season / Event</ThemedText>
+              <TouchableOpacity onPress={() => router.push('/schedule/seasons')}>
+                <ThemedText variant="caption" color={colors.primary}>Manage</ThemedText>
+              </TouchableOpacity>
+            </View>
+            <ThemedText variant="caption" color={colors.mutedForeground} style={{ marginBottom: 12 }}>
+              Assign this game to a season so stats can be tracked separately.
+            </ThemedText>
+
+            {/* No season option */}
+            <TouchableOpacity
+              style={[styles.lineupOption, { borderColor: !selectedSeasonId ? colors.primary : colors.border, backgroundColor: !selectedSeasonId ? colors.secondary : colors.background }]}
+              onPress={() => setSelectedSeasonId('')}
+            >
+              <View style={[styles.radioOuter, { borderColor: !selectedSeasonId ? colors.primary : colors.border }]}>
+                {!selectedSeasonId && <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />}
+              </View>
+              <ThemedText variant="body" color={colors.mutedForeground}>No season (one-off game)</ThemedText>
+            </TouchableOpacity>
+
+            {seasons.map((s) => {
+              const tc = seasonTypeColor(s.type);
+              const isSelected = selectedSeasonId === s.id;
+              return (
+                <TouchableOpacity
+                  key={s.id}
+                  style={[styles.lineupOption, { borderColor: isSelected ? colors.primary : colors.border, backgroundColor: isSelected ? colors.secondary : colors.background }]}
+                  onPress={() => setSelectedSeasonId(s.id)}
+                >
+                  <View style={[styles.radioOuter, { borderColor: isSelected ? colors.primary : colors.border }]}>
+                    {isSelected && <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText variant="body" style={{ fontWeight: '600' }}>{s.name}</ThemedText>
+                    <ThemedText variant="caption">{s.year}</ThemedText>
+                  </View>
+                  <View style={[styles.typeBadge, { backgroundColor: tc.bg }]}>
+                    <ThemedText variant="caption" style={{ color: tc.fg, fontWeight: '700', fontSize: 10 }}>
+                      {SEASON_TYPE_LABELS[s.type]}
+                    </ThemedText>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </Card>
+        )}
+
+        {/* If no seasons exist, show a quick prompt to create one for tournaments */}
+        {seasons.length === 0 && !isDemoMode && (
+          <TouchableOpacity
+            style={[styles.createSeasonRow, { backgroundColor: colors.secondary, borderColor: colors.primary }]}
+            onPress={() => router.push('/schedule/seasons')}
+            activeOpacity={0.8}
+          >
+            <Feather name="plus-circle" size={16} color={colors.primary} />
+            <ThemedText variant="caption" color={colors.primary} style={{ marginLeft: 8, fontWeight: '600' }}>
+              Create a season or tournament to track stats separately
+            </ThemedText>
+          </TouchableOpacity>
+        )}
+
         {/* Game type presets */}
         <Card style={{ marginBottom: 14 }}>
           <View style={styles.sectionRow}>
@@ -312,6 +389,16 @@ export default function GameSetupScreen() {
           </Card>
         )}
 
+        {/* Selected season summary */}
+        {selectedSeason && !isDemoMode && (
+          <View style={[styles.seasonSummary, { backgroundColor: colors.secondary, borderColor: colors.primary }]}>
+            <Feather name="tag" size={14} color={colors.primary} />
+            <ThemedText variant="caption" color={colors.primary} style={{ marginLeft: 6 }}>
+              Game counts toward <ThemedText variant="caption" style={{ fontWeight: '700', color: colors.primary }}>{selectedSeason.name}</ThemedText>
+            </ThemedText>
+          </View>
+        )}
+
         <Button
           title={isDemoMode ? 'Start Sandbox Session' : 'Start Game'}
           size="xl"
@@ -337,7 +424,7 @@ const styles = StyleSheet.create({
   modeBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, borderRadius: 10 },
   sectionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   noLineup: { alignItems: 'center', paddingVertical: 16 },
-  lineupOption: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: 10, padding: 12, gap: 10 },
+  lineupOption: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: 10, padding: 12, gap: 10, marginBottom: 8 },
   radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   radioInner: { width: 10, height: 10, borderRadius: 5 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15, fontFamily: 'Inter_400Regular' },
@@ -350,4 +437,7 @@ const styles = StyleSheet.create({
   stepBtn: { width: 32, height: 32, borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   sandboxIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   sandboxNote: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 12, padding: 10, borderRadius: 8, borderWidth: 1 },
+  typeBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  createSeasonRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, padding: 14, marginBottom: 14 },
+  seasonSummary: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 14 },
 });

@@ -59,6 +59,7 @@ export interface GameSetup {
   date: string;
   isDemoMode?: boolean;
   scheduledGameId?: string;
+  seasonId?: string;
 }
 
 export interface GameEvent {
@@ -122,6 +123,25 @@ export interface PlayerStats {
   ops: number;
 }
 
+// ─── Seasons ───────────────────────────────────────────────────────────────────
+
+export type SeasonType = 'preseason' | 'regular' | 'tournament';
+
+export interface Season {
+  id: string;
+  name: string;
+  type: SeasonType;
+  year: number;
+  createdAt: string;
+  isActive: boolean;
+}
+
+export const SEASON_TYPE_LABELS: Record<SeasonType, string> = {
+  preseason: 'Preseason',
+  regular: 'Regular Season',
+  tournament: 'Tournament',
+};
+
 // ─── Schedule ─────────────────────────────────────────────────────────────────
 
 export type ScheduleStatus = 'upcoming' | 'completed' | 'delayed' | 'cancelled';
@@ -136,6 +156,7 @@ export interface ScheduledGame {
   notes?: string;
   status: ScheduleStatus;
   completedGameId?: string;
+  seasonId?: string;
   createdAt: string;
 }
 
@@ -159,6 +180,7 @@ export interface AppSettings {
   autoBackupEnabled: boolean;
   hasAskedAboutBackup: boolean;
   hasDeclinedAutoRestore: boolean;
+  activeSeasonId?: string;
   // Review prompts
   gameSessionsCompleted: number;
   reviewDeclineCount: number;
@@ -187,6 +209,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoBackupEnabled: false,
   hasAskedAboutBackup: false,
   hasDeclinedAutoRestore: false,
+  activeSeasonId: undefined,
   gameSessionsCompleted: 0,
   reviewDeclineCount: 0,
   hasClickedReview: false,
@@ -228,4 +251,5 @@ export interface AppBackup {
   settings: AppSettings;
   presets: CustomPresets;
   schedule?: ScheduledGame[];
+  seasons?: Season[];
 }

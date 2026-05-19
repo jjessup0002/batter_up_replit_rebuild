@@ -1,15 +1,14 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import { Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
-import { ScheduledGame, ScheduleStatus } from '@/models/types';
-import { deleteScheduledGame, getLineups, getSchedule } from '@/services/storage';
+import { Lineup, ScheduledGame, ScheduleStatus, Season, SEASON_TYPE_LABELS } from '@/models/types';
+import { deleteScheduledGame, getLineups, getSchedule, getSeasons } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
-import { Lineup } from '@/models/types';
 
 function StatusBadge({ status }: { status: ScheduleStatus }) {
   const colors = useColors();
@@ -27,19 +26,24 @@ function StatusBadge({ status }: { status: ScheduleStatus }) {
   );
 }
 
+function SeasonBadge({ type }: { type: Season['type'] }) {
+  const colors = useColors();
+  const config = {
+    tournament: { bg: '#FFF8E1', fg: '#E65100' },
+    preseason: { bg: colors.muted, fg: colors.mutedForeground },
+    regular: { bg: colors.secondary, fg: colors.primary },
+  };
+  const c = config[type];
+  return (
+    <View style={[badgeStyles.badge, { backgroundColor: c.bg }]}>
+      <ThemedText variant="caption" style={{ color: c.fg, fontWeight: '700', fontSize: 10 }}>{SEASON_TYPE_LABELS[type]}</ThemedText>
+    </View>
+  );
+}
+
 const badgeStyles = StyleSheet.create({
   badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
 });
-
-function formatGameDate(dateStr: string, timeStr?: string): string {
-  const d = new Date(dateStr + 'T12:00:00');
-  const dateLabel = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-  if (!timeStr) return dateLabel;
-  const [h, m] = timeStr.split(':').map(Number);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const hour = h % 12 || 12;
-  return `${dateLabel} · ${hour}:${String(m).padStart(2, '0')} ${ampm}`;
-}
 
 export default function ScheduleScreen() {
   const colors = useColors();
@@ -47,22 +51,30 @@ export default function ScheduleScreen() {
   const router = useRouter();
   const [schedule, setSchedule] = useState<ScheduledGame[]>([]);
   const [lineups, setLineups] = useState<Lineup[]>([]);
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null); // null = All
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
   const load = useCallback(async () => {
-    const [s, l] = await Promise.all([getSchedule(), getLineups()]);
+    const [s, l, ss] = await Promise.all([getSchedule(), getLineups(), getSeasons()]);
     setSchedule(s.sort((a, b) => a.date.localeCompare(b.date)));
     setLineups(l);
+    setSeasons(ss);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const upcoming = schedule.filter((g) => g.status === 'upcoming' && g.date >= today);
-  const past = schedule.filter((g) => g.status !== 'upcoming' || g.date < today);
+  // Filter by selected season
+  const filtered = selectedSeasonId === null
+    ? schedule
+    : schedule.filter((g) => g.seasonId === selectedSeasonId);
+
+  const upcoming = filtered.filter((g) => g.status === 'upcoming' && g.date >= today);
+  const past = filtered.filter((g) => g.status !== 'upcoming' || g.date < today);
 
   const handleDelete = async (id: string) => {
     await deleteScheduledGame(id);
@@ -74,8 +86,12 @@ export default function ScheduleScreen() {
     return lineups.find((l) => l.id === lineupId)?.name ?? null;
   };
 
+  const getSeasonForGame = (seasonId?: string): Season | undefined =>
+    seasons.find((s) => s.id === seasonId);
+
   const renderGame = (g: ScheduledGame) => {
     const lineupName = getLineupName(g.lineupId);
+    const season = getSeasonForGame(g.seasonId);
     const isUpcoming = g.status === 'upcoming' && g.date >= today;
 
     return (
@@ -86,7 +102,6 @@ export default function ScheduleScreen() {
       >
         <Card style={{ marginBottom: 10 }}>
           <View style={styles.gameRow}>
-            {/* Left: date block */}
             <View style={[styles.dateBlock, { backgroundColor: isUpcoming ? colors.primary : colors.muted }]}>
               <ThemedText variant="caption" style={{ color: isUpcoming ? 'rgba(255,255,255,0.7)' : colors.mutedForeground, fontWeight: '700' }}>
                 {new Date(g.date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short' }).toUpperCase()}
@@ -96,7 +111,6 @@ export default function ScheduleScreen() {
               </ThemedText>
             </View>
 
-            {/* Center: details */}
             <View style={{ flex: 1 }}>
               <View style={styles.nameRow}>
                 <ThemedText variant="h3" numberOfLines={1} style={{ flex: 1 }}>vs {g.opponentName}</ThemedText>
@@ -126,10 +140,15 @@ export default function ScheduleScreen() {
                   <ThemedText variant="caption" style={{ marginLeft: 4 }}>{lineupName}</ThemedText>
                 </View>
               )}
+              {season && selectedSeasonId === null && (
+                <View style={[styles.metaRow, { marginTop: 6 }]}>
+                  <SeasonBadge type={season.type} />
+                  <ThemedText variant="caption" style={{ marginLeft: 6 }}>{season.name}</ThemedText>
+                </View>
+              )}
             </View>
           </View>
 
-          {/* Actions for upcoming games */}
           {isUpcoming && (
             <View style={[styles.actionRow, { borderTopColor: colors.border }]}>
               <TouchableOpacity
@@ -164,22 +183,85 @@ export default function ScheduleScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <ThemedText variant="h2">Schedule</ThemedText>
-        <TouchableOpacity onPress={() => router.push('/schedule/editor')} style={styles.addBtn}>
-          <Feather name="plus" size={22} color={colors.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          {seasons.length > 0 && (
+            <TouchableOpacity onPress={() => router.push('/schedule/seasons')} style={{ marginRight: 8 }}>
+              <Feather name="layers" size={20} color={colors.mutedForeground} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={() => router.push('/schedule/editor')} style={styles.addBtn}>
+            <Feather name="plus" size={22} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
+      {/* Season filter tabs */}
+      {seasons.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.seasonTabs, { borderBottomColor: colors.border }]}
+          style={{ backgroundColor: colors.card }}
+        >
+          <TouchableOpacity
+            style={[styles.seasonTab, selectedSeasonId === null && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            onPress={() => setSelectedSeasonId(null)}
+          >
+            <ThemedText
+              variant="label"
+              color={selectedSeasonId === null ? colors.primary : colors.mutedForeground}
+            >
+              All
+            </ThemedText>
+          </TouchableOpacity>
+          {seasons.map((s) => (
+            <TouchableOpacity
+              key={s.id}
+              style={[styles.seasonTab, selectedSeasonId === s.id && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+              onPress={() => setSelectedSeasonId(s.id)}
+            >
+              <ThemedText
+                variant="label"
+                color={selectedSeasonId === s.id ? colors.primary : colors.mutedForeground}
+                numberOfLines={1}
+              >
+                {s.name}
+              </ThemedText>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity
+            style={[styles.seasonTab]}
+            onPress={() => router.push('/schedule/seasons')}
+          >
+            <Feather name="plus" size={14} color={colors.primary} />
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: botPad + 20 }]} showsVerticalScrollIndicator={false}>
-        {schedule.length === 0 && (
+        {filtered.length === 0 && (
           <View style={styles.empty}>
             <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}>
               <Feather name="calendar" size={36} color={colors.primary} />
             </View>
-            <ThemedText variant="h3" align="center" style={{ marginTop: 16 }}>No games scheduled</ThemedText>
+            <ThemedText variant="h3" align="center" style={{ marginTop: 16 }}>
+              {selectedSeasonId ? 'No games in this season' : 'No games scheduled'}
+            </ThemedText>
             <ThemedText variant="body" align="center" color={colors.mutedForeground} style={{ marginTop: 6, marginBottom: 24 }}>
-              Pre-load upcoming games with opponent, date, time, and your planned lineup.
+              {selectedSeasonId
+                ? 'Schedule a game and assign it to this season.'
+                : 'Pre-load upcoming games with opponent, date, time, and your planned lineup.'}
             </ThemedText>
             <Button title="Schedule a Game" size="lg" onPress={() => router.push('/schedule/editor')} />
+            {seasons.length === 0 && (
+              <Button
+                title="Create a Season or Tournament"
+                variant="outline"
+                size="md"
+                style={{ marginTop: 10 }}
+                onPress={() => router.push('/schedule/seasons')}
+              />
+            )}
           </View>
         )}
 
@@ -199,7 +281,7 @@ export default function ScheduleScreen() {
       </ScrollView>
 
       {/* FAB */}
-      {schedule.length > 0 && (
+      {filtered.length > 0 && (
         <TouchableOpacity
           style={[styles.fab, { backgroundColor: colors.primary, bottom: botPad + 16 }]}
           onPress={() => router.push('/schedule/editor')}
@@ -217,6 +299,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   backBtn: { padding: 4 },
   addBtn: { padding: 4 },
+  headerRight: { flexDirection: 'row', alignItems: 'center' },
+  seasonTabs: { flexDirection: 'row', paddingHorizontal: 12, paddingBottom: 0 },
+  seasonTab: { paddingHorizontal: 14, paddingVertical: 12, marginRight: 4 },
   content: { padding: 16 },
   sectionLabel: { marginBottom: 10, fontWeight: '700', letterSpacing: 0.5 },
   gameRow: { flexDirection: 'row', gap: 14, alignItems: 'flex-start' },

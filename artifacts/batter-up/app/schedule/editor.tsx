@@ -14,8 +14,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
-import { Lineup, ScheduledGame, ScheduleStatus } from '@/models/types';
-import { deleteScheduledGame, generateId, getLineups, getSchedule, saveScheduledGame } from '@/services/storage';
+import { Lineup, ScheduledGame, ScheduleStatus, Season, SEASON_TYPE_LABELS } from '@/models/types';
+import { deleteScheduledGame, generateId, getLineups, getSchedule, getSeasons, saveScheduledGame } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
 export default function ScheduleEditorScreen() {
@@ -25,11 +25,13 @@ export default function ScheduleEditorScreen() {
   const { scheduleId } = useLocalSearchParams<{ scheduleId?: string }>();
 
   const [lineups, setLineups] = useState<Lineup[]>([]);
+  const [seasons, setSeasons] = useState<Season[]>([]);
   const [opponentName, setOpponentName] = useState('');
-  const [date, setDate] = useState('');        // MM/DD/YYYY
-  const [time, setTime] = useState('');        // HH:MM
+  const [date, setDate] = useState('');
+  const [time, setTime] = useState('');
   const [ampm, setAmpm] = useState<'AM' | 'PM'>('AM');
   const [selectedLineupId, setSelectedLineupId] = useState('');
+  const [selectedSeasonId, setSelectedSeasonId] = useState('');
   const [venue, setVenue] = useState('');
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState<ScheduleStatus>('upcoming');
@@ -42,13 +44,15 @@ export default function ScheduleEditorScreen() {
   const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
   useEffect(() => {
-    getLineups().then(setLineups);
+    Promise.all([getLineups(), getSeasons()]).then(([ls, ss]) => {
+      setLineups(ls);
+      setSeasons(ss);
+    });
     if (scheduleId) {
       getSchedule().then((schedule) => {
         const g = schedule.find((s) => s.id === scheduleId);
         if (!g) return;
         setOpponentName(g.opponentName);
-        // Format stored YYYY-MM-DD to MM/DD/YYYY
         const [y, mo, d] = g.date.split('-');
         setDate(`${mo}/${d}/${y}`);
         if (g.time) {
@@ -58,12 +62,12 @@ export default function ScheduleEditorScreen() {
           setTime(`${h % 12 || 12}:${String(m).padStart(2, '0')}`);
         }
         setSelectedLineupId(g.lineupId ?? '');
+        setSelectedSeasonId(g.seasonId ?? '');
         setVenue(g.venue ?? '');
         setNotes(g.notes ?? '');
         setStatus(g.status);
       });
     } else {
-      // Default to today
       const today = new Date();
       const mo = String(today.getMonth() + 1).padStart(2, '0');
       const d = String(today.getDate()).padStart(2, '0');
@@ -109,6 +113,7 @@ export default function ScheduleEditorScreen() {
       time: isoTime,
       opponentName: opponent,
       lineupId: selectedLineupId || undefined,
+      seasonId: selectedSeasonId || undefined,
       venue: venue.trim() || undefined,
       notes: notes.trim() || undefined,
       status,
@@ -146,6 +151,12 @@ export default function ScheduleEditorScreen() {
       {hint && <ThemedText variant="caption" color={colors.mutedForeground} style={{ marginTop: 4 }}>{hint}</ThemedText>}
     </View>
   );
+
+  const seasonTypeColor = (type: Season['type']) => {
+    if (type === 'tournament') return { bg: '#FFF8E1', fg: '#E65100' };
+    if (type === 'preseason') return { bg: colors.muted, fg: colors.mutedForeground };
+    return { bg: colors.secondary, fg: colors.primary };
+  };
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -206,18 +217,67 @@ export default function ScheduleEditorScreen() {
         {/* Opponent */}
         <Card style={{ marginBottom: 14 }}>
           <ThemedText variant="h3" style={{ marginBottom: 14 }}>Opponent</ThemedText>
-          <LabeledInput
-            label="Team name"
-            value={opponentName}
-            onChangeText={setOpponentName}
-            placeholder="e.g. Tigers"
-          />
-          <LabeledInput
-            label="Venue (optional)"
-            value={venue}
-            onChangeText={setVenue}
-            placeholder="e.g. Riverside Park Field 2"
-          />
+          <LabeledInput label="Team name" value={opponentName} onChangeText={setOpponentName} placeholder="e.g. Tigers" />
+          <LabeledInput label="Venue (optional)" value={venue} onChangeText={setVenue} placeholder="e.g. Riverside Park Field 2" />
+        </Card>
+
+        {/* Season / Tournament */}
+        <Card style={{ marginBottom: 14 }}>
+          <View style={styles.cardHeader}>
+            <ThemedText variant="h3">Season / Event (optional)</ThemedText>
+            <TouchableOpacity onPress={() => router.push('/schedule/seasons')}>
+              <ThemedText variant="caption" color={colors.primary}>Manage</ThemedText>
+            </TouchableOpacity>
+          </View>
+          <ThemedText variant="caption" color={colors.mutedForeground} style={{ marginBottom: 12 }}>
+            Assign this game to a season so stats can be filtered and tracked separately.
+          </ThemedText>
+
+          {/* No season option */}
+          <TouchableOpacity
+            style={[styles.lineupOption, { borderColor: !selectedSeasonId ? colors.primary : colors.border, backgroundColor: !selectedSeasonId ? colors.secondary : colors.background }]}
+            onPress={() => setSelectedSeasonId('')}
+          >
+            <View style={[styles.radioOuter, { borderColor: !selectedSeasonId ? colors.primary : colors.border }]}>
+              {!selectedSeasonId && <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />}
+            </View>
+            <ThemedText variant="body" color={colors.mutedForeground}>No season (one-off game)</ThemedText>
+          </TouchableOpacity>
+
+          {seasons.length === 0 ? (
+            <TouchableOpacity
+              style={[styles.createSeasonRow, { backgroundColor: colors.muted, borderColor: colors.border }]}
+              onPress={() => router.push('/schedule/seasons')}
+            >
+              <Feather name="plus-circle" size={14} color={colors.primary} />
+              <ThemedText variant="caption" color={colors.primary} style={{ marginLeft: 8 }}>Create a season or tournament</ThemedText>
+            </TouchableOpacity>
+          ) : (
+            seasons.map((s) => {
+              const tc = seasonTypeColor(s.type);
+              const isSelected = selectedSeasonId === s.id;
+              return (
+                <TouchableOpacity
+                  key={s.id}
+                  style={[styles.lineupOption, { borderColor: isSelected ? colors.primary : colors.border, backgroundColor: isSelected ? colors.secondary : colors.background }]}
+                  onPress={() => setSelectedSeasonId(s.id)}
+                >
+                  <View style={[styles.radioOuter, { borderColor: isSelected ? colors.primary : colors.border }]}>
+                    {isSelected && <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />}
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText variant="body" style={{ fontWeight: '600' }}>{s.name}</ThemedText>
+                    <ThemedText variant="caption">{s.year}</ThemedText>
+                  </View>
+                  <View style={[styles.typeBadge, { backgroundColor: tc.bg }]}>
+                    <ThemedText variant="caption" style={{ color: tc.fg, fontWeight: '700', fontSize: 10 }}>
+                      {SEASON_TYPE_LABELS[s.type]}
+                    </ThemedText>
+                  </View>
+                </TouchableOpacity>
+              );
+            })
+          )}
         </Card>
 
         {/* Lineup */}
@@ -311,7 +371,7 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   deleteBtn: { padding: 4 },
   content: { padding: 16 },
-  cardHeader: { marginBottom: 12 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   input: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 11, fontSize: 15, fontFamily: 'Inter_400Regular' },
   timeRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   timeInput: { flex: 1 },
@@ -321,4 +381,6 @@ const styles = StyleSheet.create({
   radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   radioInner: { width: 10, height: 10, borderRadius: 5 },
   notesInput: { minHeight: 80, textAlignVertical: 'top' },
+  typeBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  createSeasonRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 8 },
 });

@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect, useRouter } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   Image,
   Modal,
@@ -19,7 +19,7 @@ import { useGame } from '@/context/GameContext';
 import { AppBackup, Lineup, ScheduledGame } from '@/models/types';
 import {
   checkForAutoBackup, getActiveGame, getGames, getLineups,
-  getNextScheduledGame, restoreFromBackup,
+  getNextScheduledGame, getTodaysScheduledGames, restoreFromBackup,
 } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
@@ -35,6 +35,11 @@ export default function HomeScreen() {
   const [lastLineup, setLastLineup] = useState<Lineup | null>(null);
   const [nextScheduledGame, setNextScheduledGame] = useState<ScheduledGame | null>(null);
   const [hasResumeableGame, setHasResumeableGame] = useState(false);
+
+  // Today's game modal
+  const [showTodayModal, setShowTodayModal] = useState(false);
+  const [todayGames, setTodayGames] = useState<ScheduledGame[]>([]);
+  const [pendingLineupId, setPendingLineupId] = useState<string | undefined>(undefined);
 
   // Restore prompt state
   const [restoreBackup, setRestoreBackup] = useState<AppBackup | null>(null);
@@ -58,42 +63,51 @@ export default function HomeScreen() {
     return { lineupCount: ls.length, gameCount: games.length };
   }, []);
 
-  useEffect(() => {
-    loadData().then(async ({ lineupCount, gameCount }) => {
-      // Check for resumeable active game (from memory or storage)
+  // Reload on every focus — fixes the "just saved a lineup but home still shows empty" bug
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      loadData().then(async ({ lineupCount, gameCount: gc }) => {
+        if (!active) return;
+
+        // Check for resumeable active game
+        if (game && !game.isComplete) {
+          setHasResumeableGame(true);
+        } else if (!game) {
+          const activeGame = await getActiveGame();
+          if (activeGame && !activeGame.isComplete) {
+            setHasResumeableGame(true);
+            restoreGame(activeGame);
+          }
+        }
+
+        // Load next scheduled game
+        const next = await getNextScheduledGame();
+        setNextScheduledGame(next);
+
+        // Check if we should offer a restore (only on fresh install with no data)
+        if (lineupCount === 0 && gc === 0 && !settings.hasDeclinedAutoRestore && Platform.OS !== 'web') {
+          const backup = await checkForAutoBackup();
+          if (backup) {
+            setRestoreBackup(backup);
+            setShowRestorePrompt(true);
+          }
+        }
+      });
+      return () => { active = false; };
+    }, [loadData, game, settings.hasDeclinedAutoRestore])
+  );
+
+  // Also track resumeable state when game context changes
+  useFocusEffect(
+    useCallback(() => {
       if (game && !game.isComplete) {
         setHasResumeableGame(true);
-      } else if (!game) {
-        const activeGame = await getActiveGame();
-        if (activeGame && !activeGame.isComplete) {
-          setHasResumeableGame(true);
-          restoreGame(activeGame);
-        }
+      } else if (!game || game.isComplete) {
+        setHasResumeableGame(false);
       }
-
-      // Load next scheduled game
-      const next = await getNextScheduledGame();
-      setNextScheduledGame(next);
-
-      // Check if we should offer a restore (fresh install)
-      if (lineupCount === 0 && gameCount === 0 && !settings.hasDeclinedAutoRestore && Platform.OS !== 'web') {
-        const backup = await checkForAutoBackup();
-        if (backup) {
-          setRestoreBackup(backup);
-          setShowRestorePrompt(true);
-        }
-      }
-    });
-  }, []);
-
-  // Also update resumeableGame state when game context changes
-  useEffect(() => {
-    if (game && !game.isComplete) {
-      setHasResumeableGame(true);
-    } else if (!game || game.isComplete) {
-      setHasResumeableGame(false);
-    }
-  }, [game?.isComplete, game?.id]);
+    }, [game?.isComplete, game?.id])
+  );
 
   const handleRestore = async () => {
     if (!restoreBackup) return;
@@ -112,6 +126,41 @@ export default function HomeScreen() {
   const handleDeclineRestore = async () => {
     setShowRestorePrompt(false);
     await updateSettings({ hasDeclinedAutoRestore: true });
+  };
+
+  // Start Game — checks for today's scheduled games first
+  const handleStartGame = async (lineupId?: string) => {
+    const todays = await getTodaysScheduledGames();
+    if (todays.length > 0) {
+      setPendingLineupId(lineupId);
+      setTodayGames(todays);
+      setShowTodayModal(true);
+    } else {
+      router.push(
+        lineupId
+          ? { pathname: '/game/setup', params: { lineupId } }
+          : '/game/setup'
+      );
+    }
+  };
+
+  const startScheduledGame = (sg: ScheduledGame) => {
+    setShowTodayModal(false);
+    router.push({
+      pathname: '/game/setup',
+      params: sg.lineupId
+        ? { lineupId: sg.lineupId, scheduledGameId: sg.id, opponent: sg.opponentName }
+        : { scheduledGameId: sg.id, opponent: sg.opponentName },
+    });
+  };
+
+  const startDifferentGame = () => {
+    setShowTodayModal(false);
+    router.push(
+      pendingLineupId
+        ? { pathname: '/game/setup', params: { lineupId: pendingLineupId } }
+        : '/game/setup'
+    );
   };
 
   const activePlayers = lastLineup?.players.filter((p) => p.isActive) ?? [];
@@ -133,6 +182,13 @@ export default function HomeScreen() {
       dayLabel += ` · ${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`;
     }
     return dayLabel;
+  };
+
+  const formatTime = (timeStr?: string) => {
+    if (!timeStr) return null;
+    const [h, m] = timeStr.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`;
   };
 
   const backupDate = restoreBackup?.exportedAt
@@ -206,12 +262,7 @@ export default function HomeScreen() {
             </View>
             <TouchableOpacity
               style={[styles.scheduleStartBtn, { backgroundColor: colors.primary }]}
-              onPress={() => router.push({
-                pathname: '/game/setup',
-                params: nextScheduledGame.lineupId
-                  ? { lineupId: nextScheduledGame.lineupId, scheduledGameId: nextScheduledGame.id, opponent: nextScheduledGame.opponentName }
-                  : { scheduledGameId: nextScheduledGame.id, opponent: nextScheduledGame.opponentName },
-              })}
+              onPress={() => startScheduledGame(nextScheduledGame)}
             >
               <Feather name="play" size={14} color="#fff" />
             </TouchableOpacity>
@@ -244,7 +295,7 @@ export default function HomeScreen() {
                 title="Start Game"
                 size="md"
                 style={{ flex: 1 }}
-                onPress={() => router.push({ pathname: '/game/setup', params: { lineupId: lastLineup.id } })}
+                onPress={() => handleStartGame(lastLineup.id)}
                 icon={<Feather name="play" size={16} color="#fff" />}
               />
               <TouchableOpacity
@@ -271,7 +322,7 @@ export default function HomeScreen() {
           fullWidth
           style={styles.primaryBtn}
           icon={<Feather name="play" size={18} color="#fff" />}
-          onPress={() => router.push('/game/setup')}
+          onPress={() => handleStartGame(lastLineup?.id)}
         />
 
         {/* Secondary actions */}
@@ -314,6 +365,64 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
+      {/* Today's Scheduled Games Modal */}
+      <Modal visible={showTodayModal} transparent animationType="slide" onRequestClose={() => setShowTodayModal(false)}>
+        <View style={todayStyles.overlay}>
+          <View style={[todayStyles.sheet, { backgroundColor: colors.card, paddingBottom: botPad + 20 }]}>
+            <View style={[todayStyles.handle, { backgroundColor: colors.border }]} />
+            <View style={[todayStyles.iconWrap, { backgroundColor: colors.secondary }]}>
+              <Feather name="calendar" size={28} color={colors.primary} />
+            </View>
+            <ThemedText variant="h2" align="center" style={{ marginTop: 14 }}>
+              {todayGames.length === 1 ? 'Game Scheduled Today' : `${todayGames.length} Games Scheduled Today`}
+            </ThemedText>
+            <ThemedText variant="body" align="center" style={{ marginTop: 6, color: colors.mutedForeground, marginBottom: 16, paddingHorizontal: 8 }}>
+              Start a scheduled game or begin a different one.
+            </ThemedText>
+
+            {todayGames.map((sg) => (
+              <TouchableOpacity
+                key={sg.id}
+                style={[todayStyles.gameRow, { backgroundColor: colors.background, borderColor: colors.border }]}
+                onPress={() => startScheduledGame(sg)}
+                activeOpacity={0.8}
+              >
+                <View style={{ flex: 1 }}>
+                  <ThemedText variant="body" style={{ fontWeight: '700' }}>vs {sg.opponentName}</ThemedText>
+                  {sg.time && (
+                    <ThemedText variant="caption" color={colors.mutedForeground}>{formatTime(sg.time)}</ThemedText>
+                  )}
+                  {sg.venue && (
+                    <ThemedText variant="caption" color={colors.mutedForeground}>{sg.venue}</ThemedText>
+                  )}
+                </View>
+                <View style={[todayStyles.startChip, { backgroundColor: colors.primary }]}>
+                  <Feather name="play" size={12} color="#fff" />
+                  <ThemedText variant="caption" color="#fff" style={{ marginLeft: 4, fontWeight: '700' }}>Start</ThemedText>
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            <View style={{ gap: 10, marginTop: 8 }}>
+              <Button
+                title="Start a Different Game"
+                variant="outline"
+                size="lg"
+                fullWidth
+                onPress={startDifferentGame}
+              />
+              <Button
+                title="Add Another Game to Schedule"
+                variant="ghost"
+                size="md"
+                fullWidth
+                onPress={() => { setShowTodayModal(false); router.push('/schedule/editor'); }}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Restore Backup Modal */}
       <Modal visible={showRestorePrompt} transparent animationType="slide" onRequestClose={handleDeclineRestore}>
         <View style={restoreStyles.overlay}>
@@ -348,6 +457,15 @@ export default function HomeScreen() {
     </View>
   );
 }
+
+const todayStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, alignItems: 'center' },
+  handle: { width: 40, height: 4, borderRadius: 2, marginBottom: 20 },
+  iconWrap: { width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  gameRow: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 12, padding: 14, marginBottom: 10, width: '100%' },
+  startChip: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
+});
 
 const restoreStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
