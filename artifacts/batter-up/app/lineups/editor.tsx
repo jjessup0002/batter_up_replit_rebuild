@@ -122,7 +122,19 @@ export default function LineupEditorScreen() {
     };
     await saveLineup(lineup);
     setSaving(false);
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/lineups');
+    }
+  };
+
+  const goBack = () => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/lineups');
+    }
   };
 
   return (
@@ -132,7 +144,7 @@ export default function LineupEditorScreen() {
     >
       {/* Header */}
       <View style={[styles.header, { paddingTop: topPad + 8, borderBottomColor: colors.border, backgroundColor: colors.card }]}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={goBack} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <ThemedText variant="h2">{isEditing ? 'Edit Lineup' : 'New Lineup'}</ThemedText>
