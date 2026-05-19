@@ -159,7 +159,7 @@ export default function LineupEditorScreen() {
           <ThemedText variant="label" style={{ marginBottom: 6 }}>Lineup Name *</ThemedText>
           <TextInput
             style={[styles.input, { color: colors.foreground, borderColor: colors.border }]}
-            placeholder="e.g. Warren County 8U"
+            placeholder="e.g. Power Lineup, Balanced Order"
             placeholderTextColor={colors.mutedForeground}
             value={lineupName}
             onChangeText={setLineupName}

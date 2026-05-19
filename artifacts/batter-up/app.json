@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/images/batter-up-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1A2C5B"
+      "backgroundColor": "#FFFFFF"
     },
     "ios": {
       "supportsTablet": false,
