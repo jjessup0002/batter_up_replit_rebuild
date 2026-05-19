@@ -27,13 +27,15 @@ export default function OnboardingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { updateSettings } = useApp();
+  const { settings, updateSettings } = useApp();
 
+  // Pre-fill from current settings so returning users see their current choices.
+  // First-time users get the DEFAULT_SETTINGS values (basic / kid_pitch / system).
   const [step, setStep] = useState(0);
-  const [selectedMode, setSelectedMode] = useState<AppMode>('basic');
-  const [selectedGameType, setSelectedGameType] = useState<GameType>('kid_pitch');
-  const [selectedDisplay, setSelectedDisplay] = useState<DisplayMode>('system');
-  const [wantsAutoBackup, setWantsAutoBackup] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<AppMode>(settings.mode);
+  const [selectedGameType, setSelectedGameType] = useState<GameType>(settings.defaultGameType);
+  const [selectedDisplay, setSelectedDisplay] = useState<DisplayMode>(settings.displayMode);
+  const [wantsAutoBackup, setWantsAutoBackup] = useState(settings.autoBackupEnabled);
   const [goCreate, setGoCreate] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 

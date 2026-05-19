@@ -313,6 +313,8 @@ export default function LiveGameScreen() {
   const [showSaveDiscard, setShowSaveDiscard] = useState(false);
   const [showRainDelay, setShowRainDelay] = useState(false);
   const [showGameSettings, setShowGameSettings] = useState(false);
+  const [showGameMenu, setShowGameMenu] = useState(false);
+  const [showModeSwitchConfirm, setShowModeSwitchConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
   const listRef = useRef<FlatList>(null);
 
@@ -468,12 +470,12 @@ export default function LiveGameScreen() {
             </View>
           </View>
 
-          {/* Header controls: rain delay + settings */}
+          {/* Header controls: game menu + settings */}
           <View style={styles.headerControls}>
-            <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowRainDelay(true)}>
-              <Feather name="cloud-rain" size={18} color="rgba(255,255,255,0.7)" />
+            <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowGameMenu(true)} accessibilityLabel="Game menu">
+              <Feather name="more-vertical" size={20} color="rgba(255,255,255,0.85)" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowGameSettings(true)}>
+            <TouchableOpacity style={styles.headerIconBtn} onPress={() => setShowGameSettings(true)} accessibilityLabel="Game settings">
               <Feather name="settings" size={18} color="rgba(255,255,255,0.7)" />
             </TouchableOpacity>
           </View>

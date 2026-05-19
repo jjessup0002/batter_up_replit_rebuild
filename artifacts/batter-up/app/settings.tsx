@@ -45,10 +45,9 @@ export default function SettingsScreen() {
   };
 
   const handleResetOnboarding = () => {
-    Alert.alert('Reset Setup Guide', 'This will restart the onboarding wizard next time you open the app.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Reset', onPress: () => { update({ onboardingComplete: false }); router.replace('/onboarding'); } },
-    ]);
+    // Open the onboarding/setup guide for review. Onboarding pre-fills from current
+    // settings, so this does not reset anything unless the user changes values.
+    router.push('/onboarding');
   };
 
   // ─── Backup ────────────────────────────────────────────────────────────────
@@ -463,9 +462,42 @@ export default function SettingsScreen() {
               ))}
             </View>
           </View>
-          <SettingRow label="Large text mode" sub="Bigger text for easier reading">
-            <Switch value={settings.largeTextMode} onValueChange={(v) => update({ largeTextMode: v })} trackColor={{ true: colors.primary }} />
-          </SettingRow>
+          <View style={{ paddingVertical: 12 }}>
+            <ThemedText variant="body" style={{ fontWeight: '500' }}>Text size</ThemedText>
+            <ThemedText variant="caption" style={{ color: colors.mutedForeground, marginTop: 2, marginBottom: 10 }}>
+              Bigger text for easier reading in the dugout
+            </ThemedText>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(['standard', 'large', 'xlarge'] as const).map((size) => {
+                const label = size === 'standard' ? 'Standard' : size === 'large' ? 'Large' : 'Extra Large';
+                const active = settings.textSize === size;
+                return (
+                  <TouchableOpacity
+                    key={size}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      borderRadius: 10,
+                      borderWidth: 1,
+                      borderColor: active ? colors.primary : colors.border,
+                      backgroundColor: active ? colors.primary : colors.card,
+                      alignItems: 'center',
+                    }}
+                    onPress={() => update({ textSize: size })}
+                    activeOpacity={0.8}
+                  >
+                    <ThemedText
+                      variant="caption"
+                      color={active ? '#fff' : colors.foreground}
+                      style={{ fontWeight: active ? '700' : '500' }}
+                    >
+                      {label}
+                    </ThemedText>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
         </Card>
 
         {/* Data & Backup */}

@@ -1,0 +1,668 @@
+Enhancement and bug-fix update for Batter Up.
+
+Please add the following improvements to the current app while preserving the existing working features, navigation, styling, saved data, and overall user flow.
+
+This update focuses on:
+
+- Switching between Basic Mode and Advanced Mode during a game
+- Editing the lineup during a game
+- Returning to the Home screen without ending the game
+- Fixing the Text Size setting
+- Editing previous game stats from Game History
+- Fixing the Setup Guide button in Settings
+- Improving tutorials so they feel like guided walkthroughs instead of simple FAQ dropdowns
+
+1. Allow Mode Switching During a Game
+
+Add the ability for the user to switch between Basic Mode and Advanced Mode while a game is already in progress.
+
+This does not need to be visible directly on the main Live Game screen.
+
+Place it inside the in-game menu.
+
+Suggested location:
+
+Live Game Screen
+→ Game Menu
+→ Game Options
+→ Switch Game Mode
+
+The user should be able to switch:
+
+- Basic Mode to Advanced Mode
+- Advanced Mode to Basic Mode
+
+When switching modes during a game:
+
+- Do not delete game data
+- Do not reset the lineup
+- Do not reset the score
+- Do not reset the inning
+- Do not reset the current batter
+- Do not reset balls, strikes, outs, or pitch count unless the user confirms that this is expected
+- Preserve all recorded game events
+- Preserve all player stats already recorded
+
+When switching from Basic Mode to Advanced Mode:
+
+- Keep the current game state
+- Show advanced tracking tools going forward
+- Allow detailed stats from that point forward
+- Do not try to invent missing pitch-by-pitch data from earlier Basic Mode actions
+
+When switching from Advanced Mode to Basic Mode:
+
+- Keep the current game state
+- Hide advanced controls from the main screen
+- Keep advanced data in the background
+- Do not delete previously recorded advanced stats
+- Continue allowing the game summary to include whatever advanced data was already captured
+
+Add a confirmation prompt:
+
+Title:
+Switch game mode?
+
+Message:
+You can switch modes without losing your game. Basic Mode keeps the screen simple. Advanced Mode shows more tracking options.
+
+Buttons:
+- Cancel
+- Switch to Basic Mode
+- Switch to Advanced Mode
+
+Use only the button that applies if the current mode is known.
+
+2. Edit Lineup During a Game
+
+Add the ability to edit the lineup while a game is in progress.
+
+Suggested location:
+
+Live Game Screen
+→ Game Menu
+→ Edit Lineup
+
+The coach should be able to:
+
+- Add a player mid-game
+- Remove a player from the active lineup
+- Mark a player inactive
+- Reorder players if needed
+- Edit player name
+- Edit jersey number
+- Edit position
+
+This is important because in youth sports, a player may show up late, leave early, get hurt, or be unavailable unexpectedly.
+
+Adding a player mid-game:
+
+When a player is added during a game, ask where to place them in the batting order.
+
+Options:
+
+- Add to bottom of lineup
+- Insert after current batter
+- Insert before current batter
+- Choose position manually
+
+Default recommendation:
+
+Add to bottom of lineup
+
+After adding the player:
+
+- Save them to the current game lineup
+- Ask whether to also save them to the original saved lineup
+
+Prompt:
+
+Player added to this game.
+
+Would you also like to save this player to the saved lineup for future games?
+
+Buttons:
+- This game only
+- Save to lineup too
+
+Removing a player mid-game:
+
+Do not permanently delete the player by default.
+
+Use “Mark inactive for this game” as the safer default.
+
+Prompt:
+
+Remove player from active lineup?
+
+This will remove the player from the batting rotation for the rest of this game, but it will not delete them from the saved lineup.
+
+Buttons:
+- Cancel
+- Mark Inactive
+- Delete From Saved Lineup
+
+Only show “Delete From Saved Lineup” if it is safe and clearly intentional.
+
+If the removed player is the current batter:
+
+- Move current batter to the next active player
+- Reset or preserve count based on the safest game logic
+- If unsure, prompt the coach
+
+If the removed player is on deck:
+
+- Recalculate the on-deck batter
+
+If a player is inactive:
+
+- They should not appear as current batter
+- They should not appear as on deck
+- Their past stats from the game should remain saved
+- They may still appear in the game summary with their recorded stats
+
+Lineup editing must not break:
+
+- Current batter tracking
+- On-deck tracking
+- Auto-scroll
+- Score
+- Inning
+- Game events
+- Game summary
+- Player stats
+
+3. Return to Home Without Ending Game
+
+Add a way for users to return to the Home screen without ending the game or marking it as a rain delay.
+
+Suggested location:
+
+Live Game Screen
+→ Game Menu
+→ Return to Home
+
+This should pause or background the current game without ending it.
+
+Prompt:
+
+Return to Home?
+
+Your game will stay in progress. You can resume it from the Home screen.
+
+Buttons:
+- Cancel
+- Return to Home
+
+After returning home, show an active game card on the Home screen.
+
+Active game card:
+
+Game in Progress
+Team vs Opponent
+Inning
+Score
+Current Batter
+
+Buttons:
+- Resume Game
+- End Game
+
+Do not force the user to end the game just to go back to the Home screen.
+
+If a game is in progress, the Home screen should make it easy to resume.
+
+4. Fix Text Size Setting
+
+The Text Size setting currently does not appear to change anything.
+
+Please fix it so the setting actually affects the app.
+
+Settings should include:
+
+Text Size
+
+Options:
+
+- Standard
+- Large
+- Extra Large
+
+The selected text size should apply across the app, especially:
+
+- Home screen
+- Saved Lineups
+- Lineup Editor
+- Game Setup
+- Live Game
+- Game Summary
+- Player Stats
+- Team Analytics
+- Settings
+- Help / Tutorials
+
+The Live Game screen is the highest priority.
+
+Text size changes should affect:
+
+- Headers
+- Player names
+- Score
+- Current batter
+- On-deck batter
+- Button text
+- Labels
+- Tutorial text
+
+Text size should not break layout.
+
+If text becomes larger:
+
+- Cards should grow vertically
+- Buttons should remain readable
+- Content should scroll if needed
+- Text should not overlap
+- Text should not be clipped
+- Important buttons should remain usable
+
+The setting should persist after closing and reopening the app.
+
+5. Edit Previous Game Stats from Game History
+
+When viewing Game History, the coach needs the ability to correct previous game stats.
+
+This is needed because leagues may correct a score later, the coach may notice a tracking mistake, or an inning may have been recorded incorrectly.
+
+Add an Edit Game option from the Game History / Game Summary screen.
+
+Suggested location:
+
+Game History
+→ Select Game
+→ Game Summary
+→ Edit Game Stats
+
+Allow editing by inning.
+
+The edit screen should support:
+
+- Editing team score by inning
+- Editing opponent score by inning
+- Editing final score
+- Editing player stats from that game
+- Editing runs
+- Editing hits
+- Editing walks
+- Editing strikeouts
+- Editing RBIs
+- Editing outs
+- Editing notes
+
+The user should be able to adjust stats without replaying the whole game pitch by pitch.
+
+Use simple editable fields.
+
+Example screen structure:
+
+Edit Game Stats
+
+Game:
+Batter Up vs Tigers
+Date:
+May 19, 2026
+
+Score by Inning:
+
+Inning 1
+Batter Up: [ 2 ]
+Opponent: [ 1 ]
+
+Inning 2
+Batter Up: [ 3 ]
+Opponent: [ 0 ]
+
+Player Stats:
+
+Mason Carter
+Hits: [ 2 ]
+Runs: [ 1 ]
+RBIs: [ 2 ]
+Walks: [ 0 ]
+Strikeouts: [ 1 ]
+
+Buttons:
+- Cancel
+- Save Corrections
+
+When saving corrections:
+
+- Update the game summary
+- Update team totals
+- Update player totals
+- Update analytics over time
+- Mark the game as manually corrected
+
+Add a small note on corrected games:
+
+Corrected
+
+or
+
+Stats manually updated
+
+Do not make this overly complicated.
+
+The goal is simple correction, not full professional scorebook editing.
+
+Add a confirmation prompt before saving:
+
+Save corrections?
+
+This will update the game summary, player stats, and team analytics.
+
+Buttons:
+- Cancel
+- Save Corrections
+
+6. Fix “View Setup Guide” in Settings
+
+The “View Setup Guide” option in Settings currently does not do anything.
+
+Fix it so it opens the onboarding/setup guide.
+
+Settings
+→ View Setup Guide
+
+Expected behavior:
+
+- Opens the same setup guide/onboarding wizard used for first-time users
+- Allows the user to review the guide again
+- Does not reset existing saved lineups
+- Does not delete game history
+- Does not reset settings unless the user intentionally changes choices in the guide
+
+If the user changes mode, game type, display mode, or other preferences while reviewing the guide:
+
+- Save the updated preferences
+- Do not affect completed games
+- Do not delete active games
+- Do not delete saved lineups
+
+7. Improve Tutorials into Guided Walkthroughs
+
+The initial tutorial is good.
+
+The other tutorials are currently too basic because they act like FAQ dropdowns with one short paragraph.
+
+Please improve the Tutorial Library so each tutorial feels like a guided wizard walkthrough, similar to the main tutorial.
+
+Each tutorial topic should open a multi-step walkthrough instead of a simple dropdown answer.
+
+Tutorial behavior:
+
+- User taps a tutorial topic card
+- Tutorial opens as a step-by-step walkthrough
+- Each step has a title
+- Each step has short helpful text
+- Each step may include a simple example
+- User can tap Next
+- User can tap Back
+- User can exit the tutorial
+- Final step has Done button
+
+Use progress indicators like:
+
+Step 1 of 5
+
+or dots.
+
+Tutorial style should be friendly, visual, and practical.
+
+Do not make the tutorials feel like a wall of text.
+
+Use the same polished design style as onboarding.
+
+Examples of tutorial walkthrough structure:
+
+Tutorial:
+Using Next Batter
+
+Step 1:
+Title:
+Current Batter
+
+Text:
+The current batter is the player at the plate right now. Batter Up highlights this player so you can see them quickly.
+
+Step 2:
+Title:
+On Deck
+
+Text:
+The on-deck player is the next player who should get ready to bat.
+
+Step 3:
+Title:
+Tap Next Batter
+
+Text:
+After a batter finishes, tap Next Batter. Batter Up moves the highlight to the next player.
+
+Step 4:
+Title:
+The List Scrolls For You
+
+Text:
+If the next batter is lower in the lineup, Batter Up automatically scrolls so you can see them.
+
+Step 5:
+Title:
+Undo Mistakes
+
+Text:
+If you tap Next Batter by accident, tap Undo to go back.
+
+Button:
+Done
+
+Tutorial:
+Fixing a Mistake
+
+Step 1:
+Title:
+Mistakes Happen
+
+Text:
+During a game, it is easy to tap the wrong button.
+
+Step 2:
+Title:
+Use Undo
+
+Text:
+Tap Undo to reverse the last action.
+
+Step 3:
+Title:
+Fix the Score
+
+Text:
+If the score is wrong, use the score adjustment buttons or edit the game summary later.
+
+Step 4:
+Title:
+Fix After the Game
+
+Text:
+If the league corrects the score later, open Game History and edit the game stats.
+
+Button:
+Done
+
+Tutorial:
+Changing Modes
+
+Step 1:
+Title:
+Basic Mode
+
+Text:
+Basic Mode keeps the screen simple for lineup, score, inning, and next batter tracking.
+
+Step 2:
+Title:
+Advanced Mode
+
+Text:
+Advanced Mode adds balls, strikes, pitch count, detailed outcomes, and player stats.
+
+Step 3:
+Title:
+Switch During a Game
+
+Text:
+Open the game menu and choose Switch Game Mode. Your game data will stay saved.
+
+Step 4:
+Title:
+Your Data Stays Safe
+
+Text:
+Switching modes does not delete your score, lineup, inning, or recorded stats.
+
+Button:
+Done
+
+8. Tutorial Topics That Should Be Walkthroughs
+
+Convert these topics into guided walkthroughs:
+
+Getting Started:
+
+- Basic Mode vs Advanced Mode
+- Creating your first lineup
+- Saving and loading lineups
+- Editing a lineup
+- Editing a lineup during a game
+- Starting a game from a saved lineup
+
+Game Setup:
+
+- Choosing home or away
+- Setting innings
+- Setting max runs per inning
+- Choosing T-Ball, Coach Pitch, or Kid Pitch
+- Changing game rules
+- Saving default game settings
+- Choosing Light Mode or Dark Mode
+
+During the Game:
+
+- Tracking the current batter
+- Understanding the on-deck batter
+- Using Next Batter and Previous Batter
+- Tracking score
+- Tracking runs this inning
+- Ending a half-inning
+- Moving from top to bottom of an inning
+- Using Undo
+- Fixing mistakes during a game
+
+Advanced Tracking:
+
+- Tracking balls and strikes
+- Tracking pitch count
+- Handling foul balls
+- Handling max pitch rules
+- Recording a hit
+- Recording an out
+- Recording a walk
+- Recording a strikeout
+- Recording hit by pitch
+- Recording RBIs
+- Recording runs
+- Using the More button
+
+Stats and Summary:
+
+- Viewing the game summary
+- Understanding player stats
+- Understanding team stats
+- Viewing progress over time
+- Editing previous game stats
+- What batting average means
+- What on-base percentage means
+- What strikeout rate means
+- What walk rate means
+
+Troubleshooting topics should also be improved.
+
+They can remain shorter than full tutorials, but they should not be one-paragraph dropdowns only.
+
+Each troubleshooting topic should use this structure:
+
+- What probably happened
+- How to fix it now
+- How to avoid it next time
+
+Example:
+
+Troubleshooting:
+I can’t see the current batter
+
+What probably happened:
+The batting order list may be scrolled away from the highlighted batter.
+
+How to fix it now:
+Tap Next Batter or Previous Batter once, or use the current batter shortcut if available. Batter Up should automatically scroll to the current batter.
+
+How to avoid it next time:
+The app is designed to auto-scroll after batter changes. If it does not, return to the game and try changing batters again.
+
+9. UX Requirements for Tutorials
+
+The tutorial system should:
+
+- Feel like onboarding
+- Use cards
+- Use Next, Back, Done buttons
+- Use a progress indicator
+- Use short explanations
+- Use examples
+- Avoid giant paragraphs
+- Work in Light Mode and Dark Mode
+- Respect Text Size settings
+- Be searchable from Help Center
+- Be easy to exit
+
+Do not make every tutorial too long.
+
+Most tutorials should be 3–6 steps.
+
+Advanced topics can be 5–8 steps if needed.
+
+10. Validation After Update
+
+After making these changes, verify:
+
+- User can switch from Basic Mode to Advanced Mode during a game
+- User can switch from Advanced Mode to Basic Mode during a game
+- Switching modes does not erase game data
+- User can edit lineup during a game
+- User can add a late player during a game
+- User can mark a player inactive during a game
+- Current batter and on-deck batter update correctly after lineup edits
+- User can return to Home without ending the game
+- Home screen shows active game card
+- User can resume active game
+- Text Size setting changes visible text throughout the app
+- View Setup Guide opens the setup/onboarding guide
+- Game History allows editing previous game stats
+- Corrected game stats update summaries and analytics
+- Tutorial Library opens wizard-style walkthroughs
+- Tutorial walkthroughs support Next, Back, Done, and exit
+- Tutorials work in Light Mode and Dark Mode
+- Tutorials respect Text Size setting
+- Basic Mode remains simple
+- Advanced Mode remains organized
+- No existing working features are removed
