@@ -309,6 +309,35 @@ export default function SettingsScreen() {
 
       <ScrollView contentContainerStyle={[styles.content, { paddingBottom: botPad + 20 }]}>
 
+        {/* Auto-Backup */}
+        {Platform.OS !== 'web' && (
+          <>
+            <SectionHeader title="AUTOMATIC BACKUP" />
+            <Card style={{ marginBottom: 14 }}>
+              <View style={[styles.settingRow, { borderBottomColor: colors.border }]}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Feather name="shield" size={16} color={settings.autoBackupEnabled ? colors.success : colors.mutedForeground} />
+                    <ThemedText variant="body" style={{ fontWeight: '600' }}>
+                      {settings.autoBackupEnabled ? 'Auto-Backup is On' : 'Auto-Backup is Off'}
+                    </ThemedText>
+                  </View>
+                  <ThemedText variant="caption" style={{ marginTop: 3 }}>
+                    {settings.autoBackupEnabled
+                      ? `Saving to ${Platform.OS === 'ios' ? 'iCloud' : 'Google Drive'} whenever you leave the app`
+                      : `Enable to protect your lineups and games via ${Platform.OS === 'ios' ? 'iCloud' : 'Google Drive'}`}
+                  </ThemedText>
+                </View>
+                <Switch
+                  value={settings.autoBackupEnabled}
+                  onValueChange={(v) => update({ autoBackupEnabled: v })}
+                  trackColor={{ true: colors.success }}
+                />
+              </View>
+            </Card>
+          </>
+        )}
+
         {/* Mode */}
         <SectionHeader title="GAME MODE" />
         <Card style={{ marginBottom: 14 }}>

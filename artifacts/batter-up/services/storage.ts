@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 import { AppBackup, AppSettings, CustomPresets, DEFAULT_SETTINGS, GAME_RULE_PRESETS, GameState, Lineup } from '@/models/types';
 
 const KEYS = {
@@ -8,6 +9,13 @@ const KEYS = {
   ACTIVE_GAME: '@batter_up:active_game',
   PRESETS: '@batter_up:presets',
 };
+
+const AUTO_BACKUP_FILENAME = 'batter-up-auto-backup.json';
+
+function autoBackupPath(): string | null {
+  if (!FileSystem.documentDirectory) return null;
+  return FileSystem.documentDirectory + AUTO_BACKUP_FILENAME;
+}
 
 function generateId(): string {
   return Date.now().toString() + Math.random().toString(36).substr(2, 9);
@@ -135,7 +143,7 @@ export async function saveCustomPresets(presets: CustomPresets): Promise<void> {
   await AsyncStorage.setItem(KEYS.PRESETS, JSON.stringify(presets));
 }
 
-// ─── Backup & Restore ─────────────────────────────────────────────────────────
+// ─── Backup data helper ───────────────────────────────────────────────────────
 
 export async function getBackupData(): Promise<AppBackup> {
   const [lineups, games, settings, presets] = await Promise.all([
@@ -165,3 +173,47 @@ export async function restoreFromBackup(backup: AppBackup): Promise<void> {
     AsyncStorage.setItem(KEYS.PRESETS, JSON.stringify(backup.presets ?? GAME_RULE_PRESETS)),
   ]);
 }
+
+// ─── Auto-Backup (device document directory) ──────────────────────────────────
+// The documentDirectory on iOS is included in iCloud Backup.
+// On Android it is included in Android Auto Backup (backs up to Google Drive).
+// This means restoring a phone from backup automatically restores Batter Up data.
+
+export async function performAutoBackup(): Promise<void> {
+  const path = autoBackupPath();
+  if (!path) return; // web — not supported
+  const data = await getBackupData();
+  const json = JSON.stringify(data);
+  await FileSystem.writeAsStringAsync(path, json, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+}
+
+export async function checkForAutoBackup(): Promise<AppBackup | null> {
+  const path = autoBackupPath();
+  if (!path) return null;
+  try {
+    const info = await FileSystem.getInfoAsync(path);
+    if (!info.exists) return null;
+    const json = await FileSystem.readAsStringAsync(path, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    const backup = JSON.parse(json) as AppBackup;
+    return backup.version === 1 ? backup : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function deleteAutoBackup(): Promise<void> {
+  const path = autoBackupPath();
+  if (!path) return;
+  try {
+    const info = await FileSystem.getInfoAsync(path);
+    if (info.exists) await FileSystem.deleteAsync(path);
+  } catch {}
+}
+
+// ─── Manual export/import (Settings screen) ──────────────────────────────────
+
+export { getBackupData as exportBackupData };

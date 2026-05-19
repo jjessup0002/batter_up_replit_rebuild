@@ -3,7 +3,6 @@ import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-  Animated,
   Dimensions,
   Image,
   Platform,
@@ -18,10 +17,11 @@ import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useApp } from '@/context/AppContext';
 import { AppMode, GameType } from '@/models/types';
+import { performAutoBackup } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
 const { width } = Dimensions.get('window');
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 export default function OnboardingScreen() {
   const colors = useColors();
@@ -44,7 +44,25 @@ export default function OnboardingScreen() {
       onboardingComplete: true,
       mode: selectedMode,
       defaultGameType: selectedGameType,
+      hasAskedAboutBackup: true,
     });
+    if (goCreate) {
+      router.replace('/lineups/editor');
+    } else {
+      router.replace('/home');
+    }
+  };
+
+  const handleEnableAutoBackup = async (goCreate: boolean) => {
+    await updateSettings({
+      onboardingComplete: true,
+      mode: selectedMode,
+      defaultGameType: selectedGameType,
+      autoBackupEnabled: true,
+      hasAskedAboutBackup: true,
+    });
+    // Kick off first backup in the background — don't await it
+    performAutoBackup().catch(() => {});
     if (goCreate) {
       router.replace('/lineups/editor');
     } else {
@@ -54,6 +72,15 @@ export default function OnboardingScreen() {
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
+
+  const backupAvailable = Platform.OS !== 'web';
+  const cloudName = Platform.OS === 'ios' ? 'iCloud' : 'Google Drive';
+  const cloudDesc =
+    Platform.OS === 'ios'
+      ? "Backed up automatically through iCloud — free with your Apple ID. Restore everything if you get a new phone or reinstall."
+      : Platform.OS === 'android'
+      ? "Backed up automatically through Google Drive — free with your Google account. Restore everything on any Android device."
+      : "Automatic backup is available on iPhone and Android.";
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -65,8 +92,8 @@ export default function OnboardingScreen() {
         showsHorizontalScrollIndicator={false}
         style={styles.scroll}
       >
-        {/* Step 0: Welcome */}
-        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 20 }]}>
+        {/* ─── Step 0: Welcome ─── */}
+        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 60 }]}>
           <View style={styles.pageContent}>
             <Image
               source={require('@/assets/images/batter-up-logo.png')}
@@ -99,8 +126,8 @@ export default function OnboardingScreen() {
           <Button title="Get Started" size="xl" fullWidth onPress={() => goToStep(1)} style={styles.bottomBtn} />
         </View>
 
-        {/* Step 1: Choose Mode */}
-        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 20 }]}>
+        {/* ─── Step 1: Choose Mode ─── */}
+        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 60 }]}>
           <View style={styles.pageContent}>
             <ThemedText variant="h1" align="center">Choose Your Style</ThemedText>
             <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 8, marginBottom: 32 }}>
@@ -109,10 +136,7 @@ export default function OnboardingScreen() {
 
             <TouchableOpacity
               onPress={() => setSelectedMode('basic')}
-              style={[
-                styles.modeCard,
-                { borderColor: selectedMode === 'basic' ? colors.primary : colors.border, backgroundColor: colors.card },
-              ]}
+              style={[styles.modeCard, { borderColor: selectedMode === 'basic' ? colors.primary : colors.border, backgroundColor: colors.card }]}
               activeOpacity={0.8}
             >
               <View style={styles.modeCardHeader}>
@@ -138,10 +162,7 @@ export default function OnboardingScreen() {
 
             <TouchableOpacity
               onPress={() => setSelectedMode('advanced')}
-              style={[
-                styles.modeCard,
-                { borderColor: selectedMode === 'advanced' ? colors.primary : colors.border, backgroundColor: colors.card },
-              ]}
+              style={[styles.modeCard, { borderColor: selectedMode === 'advanced' ? colors.primary : colors.border, backgroundColor: colors.card }]}
               activeOpacity={0.8}
             >
               <View style={styles.modeCardHeader}>
@@ -168,8 +189,8 @@ export default function OnboardingScreen() {
           </View>
         </View>
 
-        {/* Step 2: Game Type */}
-        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 20 }]}>
+        {/* ─── Step 2: Game Type ─── */}
+        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 60 }]}>
           <View style={styles.pageContent}>
             <ThemedText variant="h1" align="center">Default Game Type</ThemedText>
             <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 8, marginBottom: 24 }}>
@@ -195,15 +216,8 @@ export default function OnboardingScreen() {
                 activeOpacity={0.8}
               >
                 <View style={styles.typeRadio}>
-                  <View
-                    style={[
-                      styles.radioOuter,
-                      { borderColor: selectedGameType === g.id ? colors.primary : colors.border },
-                    ]}
-                  >
-                    {selectedGameType === g.id && (
-                      <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />
-                    )}
+                  <View style={[styles.radioOuter, { borderColor: selectedGameType === g.id ? colors.primary : colors.border }]}>
+                    {selectedGameType === g.id && <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />}
                   </View>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -219,8 +233,87 @@ export default function OnboardingScreen() {
           </View>
         </View>
 
-        {/* Step 3: Finish */}
-        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 20 }]}>
+        {/* ─── Step 3: Auto-Backup ─── */}
+        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 60 }]}>
+          <View style={styles.pageContent}>
+            {/* Icon */}
+            <View style={[styles.backupIconWrap, { backgroundColor: colors.secondary }]}>
+              <Feather name="shield" size={40} color={colors.primary} />
+            </View>
+
+            <ThemedText variant="h1" align="center" style={{ marginTop: 20 }}>
+              Never lose your lineup
+            </ThemedText>
+            <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 10, marginBottom: 28, paddingHorizontal: 8 }}>
+              {backupAvailable
+                ? `Enable automatic backup and your lineups, games, and settings will be safe — even if you switch phones.`
+                : `Your lineups and game data are stored on this device.`}
+            </ThemedText>
+
+            {backupAvailable ? (
+              <>
+                {/* How it works */}
+                <Card style={{ marginBottom: 20 }}>
+                  <View style={styles.featureRow}>
+                    <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
+                      <Feather name="cloud" size={16} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText variant="body" style={{ fontWeight: '600' }}>Backed up to {cloudName}</ThemedText>
+                      <ThemedText variant="caption" style={{ marginTop: 3 }}>{cloudDesc}</ThemedText>
+                    </View>
+                  </View>
+                  <View style={[styles.featureRow, { marginTop: 14 }]}>
+                    <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
+                      <Feather name="refresh-cw" size={16} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText variant="body" style={{ fontWeight: '600' }}>Happens automatically</ThemedText>
+                      <ThemedText variant="caption" style={{ marginTop: 3 }}>No setup needed. Batter Up saves quietly in the background.</ThemedText>
+                    </View>
+                  </View>
+                  <View style={[styles.featureRow, { marginTop: 14 }]}>
+                    <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
+                      <Feather name="lock" size={16} color={colors.primary} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <ThemedText variant="body" style={{ fontWeight: '600' }}>Private and free</ThemedText>
+                      <ThemedText variant="caption" style={{ marginTop: 3 }}>No Batter Up account needed. Uses your existing {cloudName} storage.</ThemedText>
+                    </View>
+                  </View>
+                </Card>
+
+                <Button
+                  title={`Enable Auto-Backup via ${cloudName}`}
+                  size="lg"
+                  fullWidth
+                  onPress={() => goToStep(4)}
+                  style={{ marginBottom: 10 }}
+                />
+                <Button
+                  title="Skip for now"
+                  variant="outline"
+                  size="lg"
+                  fullWidth
+                  onPress={() => goToStep(4)}
+                />
+              </>
+            ) : (
+              <Button
+                title="Continue"
+                size="lg"
+                fullWidth
+                onPress={() => goToStep(4)}
+              />
+            )}
+          </View>
+          <View style={[styles.navRow, { marginTop: 12 }]}>
+            <Button title="Back" variant="ghost" size="sm" onPress={() => goToStep(2)} />
+          </View>
+        </View>
+
+        {/* ─── Step 4: Finish ─── */}
+        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 60 }]}>
           <View style={styles.pageContent}>
             <View style={[styles.checkCircle, { backgroundColor: colors.primary }]}>
               <Feather name="check" size={40} color="#fff" />
@@ -242,7 +335,7 @@ export default function OnboardingScreen() {
                 <ThemedText variant="caption" align="center" style={{ marginTop: 4, marginBottom: 14 }}>
                   Add your players and set the batting order
                 </ThemedText>
-                <Button title="Create First Lineup" fullWidth onPress={() => handleFinish(true)} />
+                <Button title="Create First Lineup" fullWidth onPress={() => handleEnableAutoBackup(true)} />
               </Card>
 
               <Button
@@ -250,7 +343,7 @@ export default function OnboardingScreen() {
                 variant="outline"
                 fullWidth
                 size="lg"
-                onPress={() => handleFinish(false)}
+                onPress={() => handleEnableAutoBackup(false)}
               />
             </View>
           </View>
@@ -281,8 +374,8 @@ const styles = StyleSheet.create({
   logo: { width: 220, height: 90, alignSelf: 'center', marginTop: 20 },
   tagline: { fontSize: 16, paddingHorizontal: 10, marginBottom: 32 },
   featuresBox: { gap: 12 },
-  featureRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  featureIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  featureRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  featureIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   bottomBtn: { marginTop: 20 },
   modeCard: { borderWidth: 2, borderRadius: 14, padding: 16, marginBottom: 14 },
   modeCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -293,6 +386,7 @@ const styles = StyleSheet.create({
   typeRadio: { marginRight: 12 },
   radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   radioInner: { width: 10, height: 10, borderRadius: 5 },
+  backupIconWrap: { width: 88, height: 88, borderRadius: 24, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 20 },
   checkCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 40 },
   finishOptions: { flex: 1, justifyContent: 'flex-start' },
   navRow: { flexDirection: 'row', marginTop: 16 },

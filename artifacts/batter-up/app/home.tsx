@@ -1,24 +1,37 @@
 import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import {
+  Image,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useApp } from '@/context/AppContext';
-import { Lineup } from '@/models/types';
-import { getGames, getLineups } from '@/services/storage';
+import { AppBackup, Lineup } from '@/models/types';
+import { checkForAutoBackup, getGames, getLineups, restoreFromBackup } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { settings } = useApp();
+  const { settings, updateSettings, reloadSettings, reloadPresets } = useApp();
   const [lineups, setLineups] = useState<Lineup[]>([]);
   const [gameCount, setGameCount] = useState(0);
   const [lastLineup, setLastLineup] = useState<Lineup | null>(null);
+
+  // Restore prompt state
+  const [restoreBackup, setRestoreBackup] = useState<AppBackup | null>(null);
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -27,7 +40,6 @@ export default function HomeScreen() {
     const [ls, games] = await Promise.all([getLineups(), getGames()]);
     setLineups(ls);
     setGameCount(games.length);
-    // Find most recently used lineup
     const sorted = [...ls].sort((a, b) => {
       if (!a.lastUsedAt && !b.lastUsedAt) return 0;
       if (!a.lastUsedAt) return 1;
@@ -35,14 +47,41 @@ export default function HomeScreen() {
       return new Date(b.lastUsedAt).getTime() - new Date(a.lastUsedAt).getTime();
     });
     setLastLineup(sorted[0] ?? null);
+    return { lineupCount: ls.length, gameCount: games.length };
   }, []);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    // Load data then check if we should offer a restore
+    loadData().then(async ({ lineupCount, gameCount }) => {
+      // Only offer restore if the device has no data at all (fresh install / cleared)
+      if (lineupCount === 0 && gameCount === 0 && !settings.hasDeclinedAutoRestore && Platform.OS !== 'web') {
+        const backup = await checkForAutoBackup();
+        if (backup) {
+          setRestoreBackup(backup);
+          setShowRestorePrompt(true);
+        }
+      }
+    });
+  }, []);
 
-  // Re-load when navigating back
-  const unsubscribe = router;
+  const handleRestore = async () => {
+    if (!restoreBackup) return;
+    setIsRestoring(true);
+    try {
+      await restoreFromBackup(restoreBackup);
+      await reloadSettings();
+      await reloadPresets();
+      await loadData();
+      setShowRestorePrompt(false);
+    } catch {
+      setIsRestoring(false);
+    }
+  };
+
+  const handleDeclineRestore = async () => {
+    setShowRestorePrompt(false);
+    await updateSettings({ hasDeclinedAutoRestore: true });
+  };
 
   const activePlayers = lastLineup?.players.filter((p) => p.isActive) ?? [];
 
@@ -50,6 +89,13 @@ export default function HomeScreen() {
     if (!iso) return '';
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
+
+  const backupDate = restoreBackup?.exportedAt
+    ? new Date(restoreBackup.exportedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : 'Unknown date';
+
+  const lineupCountInBackup = restoreBackup?.lineups?.length ?? 0;
+  const gameCountInBackup = restoreBackup?.games?.length ?? 0;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -182,9 +228,86 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* ─── Restore Backup Modal ─── */}
+      <Modal
+        visible={showRestorePrompt}
+        transparent
+        animationType="slide"
+        onRequestClose={handleDeclineRestore}
+      >
+        <View style={restoreStyles.overlay}>
+          <View style={[restoreStyles.sheet, { backgroundColor: colors.card, paddingBottom: botPad + 20 }]}>
+            <View style={[restoreStyles.handle, { backgroundColor: colors.border }]} />
+
+            {/* Icon */}
+            <View style={[restoreStyles.iconWrap, { backgroundColor: colors.secondary }]}>
+              <Feather name="database" size={32} color={colors.primary} />
+            </View>
+
+            <ThemedText variant="h2" align="center" style={{ marginTop: 16 }}>
+              Welcome back!
+            </ThemedText>
+            <ThemedText variant="body" align="center" style={{ marginTop: 8, color: colors.mutedForeground, paddingHorizontal: 8 }}>
+              We found a backup from {backupDate}.
+            </ThemedText>
+
+            {/* Backup contents */}
+            <View style={[restoreStyles.contentRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <View style={restoreStyles.contentItem}>
+                <ThemedText variant="h2" color={colors.primary}>{lineupCountInBackup}</ThemedText>
+                <ThemedText variant="caption">Lineup{lineupCountInBackup !== 1 ? 's' : ''}</ThemedText>
+              </View>
+              <View style={[restoreStyles.divider, { backgroundColor: colors.border }]} />
+              <View style={restoreStyles.contentItem}>
+                <ThemedText variant="h2" color={colors.primary}>{gameCountInBackup}</ThemedText>
+                <ThemedText variant="caption">Game{gameCountInBackup !== 1 ? 's' : ''}</ThemedText>
+              </View>
+            </View>
+
+            <ThemedText variant="caption" align="center" style={{ color: colors.mutedForeground, marginBottom: 20, paddingHorizontal: 8 }}>
+              Restore to pick up right where you left off.
+            </ThemedText>
+
+            <Button
+              title={isRestoring ? 'Restoring...' : 'Restore My Data'}
+              size="lg"
+              fullWidth
+              disabled={isRestoring}
+              onPress={handleRestore}
+              style={{ marginBottom: 10 }}
+            />
+            <Button
+              title="Start Fresh"
+              variant="outline"
+              size="lg"
+              fullWidth
+              disabled={isRestoring}
+              onPress={handleDeclineRestore}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
+
+const restoreStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, alignItems: 'center' },
+  handle: { width: 40, height: 4, borderRadius: 2, marginBottom: 20 },
+  iconWrap: { width: 72, height: 72, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  contentRow: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 16,
+    marginVertical: 16,
+    width: '100%',
+  },
+  contentItem: { flex: 1, alignItems: 'center', gap: 4 },
+  divider: { width: 1, marginHorizontal: 8 },
+});
 
 const styles = StyleSheet.create({
   container: { flex: 1 },

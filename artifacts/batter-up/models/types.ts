@@ -135,6 +135,9 @@ export interface AppSettings {
   darkMode: boolean;
   largeTextMode: boolean;
   onboardingComplete: boolean;
+  autoBackupEnabled: boolean;
+  hasAskedAboutBackup: boolean;
+  hasDeclinedAutoRestore: boolean;
 }
 
 export type CustomPresets = Record<GameType, Partial<GameRules>>;
@@ -154,6 +157,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   darkMode: false,
   largeTextMode: false,
   onboardingComplete: false,
+  autoBackupEnabled: false,
+  hasAskedAboutBackup: false,
+  hasDeclinedAutoRestore: false,
 };
 
 export const GAME_RULE_PRESETS: CustomPresets = {
