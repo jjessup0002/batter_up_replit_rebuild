@@ -21,7 +21,7 @@ import { performAutoBackup } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
 const { width } = Dimensions.get('window');
-const TOTAL_STEPS = 5;
+const TOTAL_STEPS = 6;
 
 export default function OnboardingScreen() {
   const colors = useColors();
@@ -32,6 +32,7 @@ export default function OnboardingScreen() {
   const [selectedMode, setSelectedMode] = useState<AppMode>('basic');
   const [selectedGameType, setSelectedGameType] = useState<GameType>('kid_pitch');
   const [wantsAutoBackup, setWantsAutoBackup] = useState(false);
+  const [goCreateAfterOnboarding, setGoCreateAfterOnboarding] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const goToStep = (s: number) => {
@@ -40,7 +41,7 @@ export default function OnboardingScreen() {
     scrollRef.current?.scrollTo({ x: s * width, animated: true });
   };
 
-  const handleFinish = async (goCreate: boolean) => {
+  const handleFinish = async (showTutorial: boolean) => {
     await updateSettings({
       onboardingComplete: true,
       mode: selectedMode,
@@ -51,11 +52,18 @@ export default function OnboardingScreen() {
     if (wantsAutoBackup) {
       performAutoBackup().catch(() => {});
     }
-    if (goCreate) {
+    if (showTutorial) {
+      router.replace('/tutorial');
+    } else if (goCreateAfterOnboarding) {
       router.replace('/lineups/editor');
     } else {
       router.replace('/home');
     }
+  };
+
+  const goToTutorialPrompt = (goCreate: boolean) => {
+    setGoCreateAfterOnboarding(goCreate);
+    goToStep(5);
   };
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
@@ -307,7 +315,7 @@ export default function OnboardingScreen() {
               <Feather name="check" size={40} color="#fff" />
             </View>
             <ThemedText variant="h1" align="center" style={{ marginTop: 24 }}>
-              You're ready to start!
+              You're all set!
             </ThemedText>
             <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 10, marginBottom: 40 }}>
               {selectedMode === 'basic' ? 'Basic Mode' : 'Advanced Mode'} selected with{' '}
@@ -323,7 +331,7 @@ export default function OnboardingScreen() {
                 <ThemedText variant="caption" align="center" style={{ marginTop: 4, marginBottom: 14 }}>
                   Add your players and set the batting order
                 </ThemedText>
-                <Button title="Create First Lineup" fullWidth onPress={() => handleFinish(true)} />
+                <Button title="Create First Lineup" fullWidth onPress={() => goToTutorialPrompt(true)} />
               </Card>
 
               <Button
@@ -331,9 +339,47 @@ export default function OnboardingScreen() {
                 variant="outline"
                 fullWidth
                 size="lg"
-                onPress={() => handleFinish(false)}
+                onPress={() => goToTutorialPrompt(false)}
               />
             </View>
+          </View>
+        </View>
+
+        {/* ─── Step 5: Tutorial prompt ─── */}
+        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 60 }]}>
+          <View style={styles.pageContent}>
+            <View style={[styles.tutorialIconWrap, { backgroundColor: '#EBF3FF' }]}>
+              <Feather name="compass" size={40} color={colors.primary} />
+            </View>
+            <ThemedText variant="h1" align="center" style={{ marginTop: 24 }}>
+              Want a quick tour?
+            </ThemedText>
+            <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 10, marginBottom: 36, paddingHorizontal: 8 }}>
+              A one-minute walkthrough covering lineups, live game tracking, and stats — so you're ready before the first pitch.
+            </ThemedText>
+
+            <Button
+              title="Show Me Around"
+              size="xl"
+              fullWidth
+              onPress={() => handleFinish(true)}
+              style={{ marginBottom: 14 }}
+            />
+            <Button
+              title="I'll Explore on My Own"
+              variant="outline"
+              size="lg"
+              fullWidth
+              onPress={() => handleFinish(false)}
+            />
+            <ThemedText
+              variant="caption"
+              color={colors.mutedForeground}
+              align="center"
+              style={{ marginTop: 14, paddingHorizontal: 16 }}
+            >
+              You can always start the tutorial from Settings.
+            </ThemedText>
           </View>
         </View>
       </ScrollView>
@@ -376,6 +422,7 @@ const styles = StyleSheet.create({
   radioInner: { width: 10, height: 10, borderRadius: 5 },
   backupIconWrap: { width: 88, height: 88, borderRadius: 24, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 20 },
   checkCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 40 },
+  tutorialIconWrap: { width: 88, height: 88, borderRadius: 24, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 40 },
   finishOptions: { flex: 1, justifyContent: 'flex-start' },
   navRow: { flexDirection: 'row', marginTop: 16 },
   dots: { position: 'absolute', flexDirection: 'row', alignSelf: 'center', gap: 6, alignItems: 'center' },
