@@ -415,7 +415,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   }, []);
   const endGame = useCallback(() => {
     dispatch({ type: 'END_GAME' });
-    clearActiveGame().catch(() => {});
+    // Note: clearActiveGame() is handled by the live screen after save/discard choice
   }, []);
   const updateGameSetup = useCallback((partial: Partial<GameSetup>) => {
     dispatch({ type: 'UPDATE_SETUP', payload: partial });

@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -469,10 +469,19 @@ export default function SettingsScreen() {
         {/* Help */}
         <SectionHeader title="HELP" />
         <Card style={{ marginBottom: 14 }}>
+          <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/tutorial')}>
+            <Feather name="book-open" size={18} color={colors.primary} />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <ThemedText variant="body" color={colors.primary} style={{ fontWeight: '600' }}>How It Works</ThemedText>
+              <ThemedText variant="caption">6-slide walkthrough of the app</ThemedText>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.primary} />
+          </TouchableOpacity>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <TouchableOpacity style={styles.actionRow} onPress={handleResetOnboarding}>
-            <Feather name="help-circle" size={18} color={colors.primary} />
-            <ThemedText variant="body" color={colors.primary} style={{ marginLeft: 10 }}>View Setup Guide</ThemedText>
-            <Feather name="chevron-right" size={18} color={colors.primary} style={{ marginLeft: 'auto' }} />
+            <Feather name="help-circle" size={18} color={colors.mutedForeground} />
+            <ThemedText variant="body" style={{ marginLeft: 10 }}>View Setup Guide</ThemedText>
+            <Feather name="chevron-right" size={18} color={colors.mutedForeground} style={{ marginLeft: 'auto' }} />
           </TouchableOpacity>
         </Card>
 

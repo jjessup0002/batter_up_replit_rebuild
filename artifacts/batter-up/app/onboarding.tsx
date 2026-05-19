@@ -31,6 +31,7 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState(0);
   const [selectedMode, setSelectedMode] = useState<AppMode>('basic');
   const [selectedGameType, setSelectedGameType] = useState<GameType>('kid_pitch');
+  const [wantsAutoBackup, setWantsAutoBackup] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const goToStep = (s: number) => {
@@ -44,25 +45,12 @@ export default function OnboardingScreen() {
       onboardingComplete: true,
       mode: selectedMode,
       defaultGameType: selectedGameType,
+      autoBackupEnabled: wantsAutoBackup,
       hasAskedAboutBackup: true,
     });
-    if (goCreate) {
-      router.replace('/lineups/editor');
-    } else {
-      router.replace('/home');
+    if (wantsAutoBackup) {
+      performAutoBackup().catch(() => {});
     }
-  };
-
-  const handleEnableAutoBackup = async (goCreate: boolean) => {
-    await updateSettings({
-      onboardingComplete: true,
-      mode: selectedMode,
-      defaultGameType: selectedGameType,
-      autoBackupEnabled: true,
-      hasAskedAboutBackup: true,
-    });
-    // Kick off first backup in the background — don't await it
-    performAutoBackup().catch(() => {});
     if (goCreate) {
       router.replace('/lineups/editor');
     } else {
@@ -287,7 +275,7 @@ export default function OnboardingScreen() {
                   title={`Enable Auto-Backup via ${cloudName}`}
                   size="lg"
                   fullWidth
-                  onPress={() => goToStep(4)}
+                  onPress={() => { setWantsAutoBackup(true); goToStep(4); }}
                   style={{ marginBottom: 10 }}
                 />
                 <Button
@@ -295,7 +283,7 @@ export default function OnboardingScreen() {
                   variant="outline"
                   size="lg"
                   fullWidth
-                  onPress={() => goToStep(4)}
+                  onPress={() => { setWantsAutoBackup(false); goToStep(4); }}
                 />
               </>
             ) : (
@@ -335,7 +323,7 @@ export default function OnboardingScreen() {
                 <ThemedText variant="caption" align="center" style={{ marginTop: 4, marginBottom: 14 }}>
                   Add your players and set the batting order
                 </ThemedText>
-                <Button title="Create First Lineup" fullWidth onPress={() => handleEnableAutoBackup(true)} />
+                <Button title="Create First Lineup" fullWidth onPress={() => handleFinish(true)} />
               </Card>
 
               <Button
@@ -343,7 +331,7 @@ export default function OnboardingScreen() {
                 variant="outline"
                 fullWidth
                 size="lg"
-                onPress={() => handleEnableAutoBackup(false)}
+                onPress={() => handleFinish(false)}
               />
             </View>
           </View>

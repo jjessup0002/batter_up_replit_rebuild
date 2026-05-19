@@ -1,0 +1,13 @@
+next features, allow for schedule to be loaded so that the coach can pre load dates/times/lineups/openents. 
+
+Also, add a demo/test/experienement mode or whatyou think it should be called. The goal behind this mode is the coach is working on line ups and maybe wants to step through a simulated game to see where players land. He needs to be able to save this as a real lineup or discard without this impacting the real stats. 
+
+Also, he needs to be able to correct previus game stats, maybe there was an error or he fat fingered something and didn't realize it until after the game is already over.
+
+also, in a real game, when he ends the game, ask him if he wants to save game stats or discard. also, we need to take into account some games get delayed, like a rain delay. I don't want them to have to keep the same lineup, they need to be able to save it and indicate why it's being saved but not ended. One thing i'm concerned about his how to go about this, they may think if they hit end that it will lock in the game, maybe add rain delay or something somewhere.
+
+also, let's add a tutorial function that walks through basic/advance mode, there choice, but also allows them to skip it. So after they setup the export take them through the tutorial. They also need to be able to come back to it. 
+
+lastly, i want to prompt them to leave a review on the app store or play store. Maybe after the third or fourth time they've used it. Give them the option to decline. If they decline, every 4th time they use the app prompt them to give a review until they finally click leave review. I don't want you to track if they actually leave the review, simply if they hit the leave review button. 
+
+Lastly, div that the end game button lives in needs to fill all the way to the bottom. Right now, you can see part of the lineup below the end game button. I'm not saying the button itself needs to be bigger just that there is no hover effect of the end game button, the div should fill the space.

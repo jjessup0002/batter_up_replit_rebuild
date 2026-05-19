@@ -57,6 +57,8 @@ export interface GameSetup {
   isHome: boolean;
   rules: GameRules;
   date: string;
+  isDemoMode?: boolean;
+  scheduledGameId?: string;
 }
 
 export interface GameEvent {
@@ -120,6 +122,25 @@ export interface PlayerStats {
   ops: number;
 }
 
+// ─── Schedule ─────────────────────────────────────────────────────────────────
+
+export type ScheduleStatus = 'upcoming' | 'completed' | 'delayed' | 'cancelled';
+
+export interface ScheduledGame {
+  id: string;
+  date: string;       // ISO date string (YYYY-MM-DD)
+  time?: string;      // HH:MM (24h)
+  opponentName: string;
+  lineupId?: string;
+  venue?: string;
+  notes?: string;
+  status: ScheduleStatus;
+  completedGameId?: string;
+  createdAt: string;
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+
 export interface AppSettings {
   mode: AppMode;
   defaultGameType: GameType;
@@ -138,6 +159,12 @@ export interface AppSettings {
   autoBackupEnabled: boolean;
   hasAskedAboutBackup: boolean;
   hasDeclinedAutoRestore: boolean;
+  // Review prompts
+  gameSessionsCompleted: number;
+  reviewDeclineCount: number;
+  hasClickedReview: boolean;
+  // Tutorial
+  tutorialComplete: boolean;
 }
 
 export type CustomPresets = Record<GameType, Partial<GameRules>>;
@@ -160,64 +187,36 @@ export const DEFAULT_SETTINGS: AppSettings = {
   autoBackupEnabled: false,
   hasAskedAboutBackup: false,
   hasDeclinedAutoRestore: false,
+  gameSessionsCompleted: 0,
+  reviewDeclineCount: 0,
+  hasClickedReview: false,
+  tutorialComplete: false,
 };
 
 export const GAME_RULE_PRESETS: CustomPresets = {
   tball: {
-    mode: 'basic',
-    gameType: 'tball',
-    innings: 5,
-    maxRunsPerHalfInning: 6,
-    outsPerHalfInning: 3,
-    ballsForWalk: null,
-    strikesForStrikeout: null,
-    maxPitchesPerBatter: null,
-    trackBalls: false,
-    trackStrikes: false,
-    trackPitches: false,
-    autoAdvanceBatter: true,
+    mode: 'basic', gameType: 'tball', innings: 5, maxRunsPerHalfInning: 6,
+    outsPerHalfInning: 3, ballsForWalk: null, strikesForStrikeout: null,
+    maxPitchesPerBatter: null, trackBalls: false, trackStrikes: false,
+    trackPitches: false, autoAdvanceBatter: true,
   },
   coach_pitch: {
-    mode: 'basic',
-    gameType: 'coach_pitch',
-    innings: 6,
-    maxRunsPerHalfInning: 6,
-    outsPerHalfInning: 3,
-    ballsForWalk: null,
-    strikesForStrikeout: null,
-    maxPitchesPerBatter: 6,
-    trackBalls: false,
-    trackStrikes: true,
-    trackPitches: true,
-    autoAdvanceBatter: true,
+    mode: 'basic', gameType: 'coach_pitch', innings: 6, maxRunsPerHalfInning: 6,
+    outsPerHalfInning: 3, ballsForWalk: null, strikesForStrikeout: null,
+    maxPitchesPerBatter: 6, trackBalls: false, trackStrikes: true,
+    trackPitches: true, autoAdvanceBatter: true,
   },
   kid_pitch: {
-    mode: 'advanced',
-    gameType: 'kid_pitch',
-    innings: 6,
-    maxRunsPerHalfInning: null,
-    outsPerHalfInning: 3,
-    ballsForWalk: 4,
-    strikesForStrikeout: 3,
-    maxPitchesPerBatter: null,
-    trackBalls: true,
-    trackStrikes: true,
-    trackPitches: true,
-    autoAdvanceBatter: true,
+    mode: 'advanced', gameType: 'kid_pitch', innings: 6, maxRunsPerHalfInning: null,
+    outsPerHalfInning: 3, ballsForWalk: 4, strikesForStrikeout: 3,
+    maxPitchesPerBatter: null, trackBalls: true, trackStrikes: true,
+    trackPitches: true, autoAdvanceBatter: true,
   },
   custom: {
-    mode: 'advanced',
-    gameType: 'custom',
-    innings: 7,
-    maxRunsPerHalfInning: null,
-    outsPerHalfInning: 3,
-    ballsForWalk: 4,
-    strikesForStrikeout: 3,
-    maxPitchesPerBatter: null,
-    trackBalls: true,
-    trackStrikes: true,
-    trackPitches: true,
-    autoAdvanceBatter: true,
+    mode: 'advanced', gameType: 'custom', innings: 7, maxRunsPerHalfInning: null,
+    outsPerHalfInning: 3, ballsForWalk: 4, strikesForStrikeout: 3,
+    maxPitchesPerBatter: null, trackBalls: true, trackStrikes: true,
+    trackPitches: true, autoAdvanceBatter: true,
   },
 };
 
@@ -228,4 +227,5 @@ export interface AppBackup {
   games: GameState[];
   settings: AppSettings;
   presets: CustomPresets;
+  schedule?: ScheduledGame[];
 }

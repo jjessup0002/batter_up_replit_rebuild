@@ -15,8 +15,12 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useApp } from '@/context/AppContext';
-import { AppBackup, Lineup } from '@/models/types';
-import { checkForAutoBackup, getGames, getLineups, restoreFromBackup } from '@/services/storage';
+import { useGame } from '@/context/GameContext';
+import { AppBackup, Lineup, ScheduledGame } from '@/models/types';
+import {
+  checkForAutoBackup, getActiveGame, getGames, getLineups,
+  getNextScheduledGame, restoreFromBackup,
+} from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
 export default function HomeScreen() {
@@ -24,9 +28,13 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { settings, updateSettings, reloadSettings, reloadPresets } = useApp();
+  const { game, restoreGame } = useGame();
+
   const [lineups, setLineups] = useState<Lineup[]>([]);
   const [gameCount, setGameCount] = useState(0);
   const [lastLineup, setLastLineup] = useState<Lineup | null>(null);
+  const [nextScheduledGame, setNextScheduledGame] = useState<ScheduledGame | null>(null);
+  const [hasResumeableGame, setHasResumeableGame] = useState(false);
 
   // Restore prompt state
   const [restoreBackup, setRestoreBackup] = useState<AppBackup | null>(null);
@@ -51,9 +59,23 @@ export default function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    // Load data then check if we should offer a restore
     loadData().then(async ({ lineupCount, gameCount }) => {
-      // Only offer restore if the device has no data at all (fresh install / cleared)
+      // Check for resumeable active game (from memory or storage)
+      if (game && !game.isComplete) {
+        setHasResumeableGame(true);
+      } else if (!game) {
+        const activeGame = await getActiveGame();
+        if (activeGame && !activeGame.isComplete) {
+          setHasResumeableGame(true);
+          restoreGame(activeGame);
+        }
+      }
+
+      // Load next scheduled game
+      const next = await getNextScheduledGame();
+      setNextScheduledGame(next);
+
+      // Check if we should offer a restore (fresh install)
       if (lineupCount === 0 && gameCount === 0 && !settings.hasDeclinedAutoRestore && Platform.OS !== 'web') {
         const backup = await checkForAutoBackup();
         if (backup) {
@@ -63,6 +85,15 @@ export default function HomeScreen() {
       }
     });
   }, []);
+
+  // Also update resumeableGame state when game context changes
+  useEffect(() => {
+    if (game && !game.isComplete) {
+      setHasResumeableGame(true);
+    } else if (!game || game.isComplete) {
+      setHasResumeableGame(false);
+    }
+  }, [game?.isComplete, game?.id]);
 
   const handleRestore = async () => {
     if (!restoreBackup) return;
@@ -90,10 +121,23 @@ export default function HomeScreen() {
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
+  const formatScheduledDate = (dateStr: string, timeStr?: string) => {
+    const d = new Date(dateStr + 'T12:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = Math.round((d.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    let dayLabel = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    if (timeStr) {
+      const [h, m] = timeStr.split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      dayLabel += ` · ${h % 12 || 12}:${String(m).padStart(2, '0')} ${ampm}`;
+    }
+    return dayLabel;
+  };
+
   const backupDate = restoreBackup?.exportedAt
     ? new Date(restoreBackup.exportedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : 'Unknown date';
-
   const lineupCountInBackup = restoreBackup?.lineups?.length ?? 0;
   const gameCountInBackup = restoreBackup?.games?.length ?? 0;
 
@@ -105,11 +149,7 @@ export default function HomeScreen() {
       >
         {/* Logo + tagline */}
         <View style={styles.logoSection}>
-          <Image
-            source={require('@/assets/images/batter-up-logo.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
+          <Image source={require('@/assets/images/batter-up-logo.png')} style={styles.logo} resizeMode="contain" />
           <ThemedText variant="caption" align="center" style={{ marginTop: 6 }}>
             Build your lineup. Track the next batter. Keep the game moving.
           </ThemedText>
@@ -127,15 +167,62 @@ export default function HomeScreen() {
           <Feather name="chevron-right" size={12} color={colors.primary} style={{ marginLeft: 4 }} />
         </TouchableOpacity>
 
+        {/* Resume game banner */}
+        {hasResumeableGame && (
+          <TouchableOpacity
+            style={[styles.resumeBanner, { backgroundColor: colors.accent }]}
+            onPress={() => router.push('/game/live')}
+            activeOpacity={0.85}
+          >
+            <View style={styles.resumeLeft}>
+              <Feather name="play-circle" size={24} color="#1A2C5B" />
+              <View style={{ marginLeft: 10 }}>
+                <ThemedText variant="body" style={{ fontWeight: '700', color: '#1A2C5B' }}>Game in Progress</ThemedText>
+                <ThemedText variant="caption" style={{ color: '#1A2C5B' }}>
+                  {game?.setup.opponentName ? `vs ${game.setup.opponentName}` : 'Tap to resume'}
+                </ThemedText>
+              </View>
+            </View>
+            <ThemedText variant="body" style={{ color: '#1A2C5B', fontWeight: '700' }}>Resume</ThemedText>
+          </TouchableOpacity>
+        )}
+
+        {/* Next scheduled game */}
+        {nextScheduledGame && (
+          <TouchableOpacity
+            style={[styles.scheduleCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            onPress={() => router.push('/schedule')}
+            activeOpacity={0.8}
+          >
+            <View style={[styles.scheduleDateBlock, { backgroundColor: colors.secondary }]}>
+              <Feather name="calendar" size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <ThemedText variant="caption" color={colors.primary} style={{ fontWeight: '700' }}>NEXT GAME</ThemedText>
+              <ThemedText variant="body" style={{ fontWeight: '600' }}>vs {nextScheduledGame.opponentName}</ThemedText>
+              <ThemedText variant="caption" color={colors.mutedForeground}>
+                {formatScheduledDate(nextScheduledGame.date, nextScheduledGame.time)}
+              </ThemedText>
+            </View>
+            <TouchableOpacity
+              style={[styles.scheduleStartBtn, { backgroundColor: colors.primary }]}
+              onPress={() => router.push({
+                pathname: '/game/setup',
+                params: nextScheduledGame.lineupId
+                  ? { lineupId: nextScheduledGame.lineupId, scheduledGameId: nextScheduledGame.id, opponent: nextScheduledGame.opponentName }
+                  : { scheduledGameId: nextScheduledGame.id, opponent: nextScheduledGame.opponentName },
+              })}
+            >
+              <Feather name="play" size={14} color="#fff" />
+            </TouchableOpacity>
+          </TouchableOpacity>
+        )}
+
         {/* Quick-start card */}
         {lastLineup ? (
           <Card style={styles.quickCard}>
             <View style={styles.quickCardHeader}>
-              <Image
-                source={require('@/assets/images/batter-up-logo-small.png')}
-                style={{ width: 28, height: 28 }}
-                resizeMode="contain"
-              />
+              <Image source={require('@/assets/images/batter-up-logo-small.png')} style={{ width: 28, height: 28 }} resizeMode="contain" />
               <ThemedText variant="label" style={{ marginLeft: 8 }}>Last Used Lineup</ThemedText>
             </View>
             <ThemedText variant="h2" style={{ marginTop: 8 }}>{lastLineup.name}</ThemedText>
@@ -172,9 +259,7 @@ export default function HomeScreen() {
           <Card style={[styles.emptyCard, { borderStyle: 'dashed', borderColor: colors.border }]}>
             <Feather name="users" size={32} color={colors.mutedForeground} />
             <ThemedText variant="h3" align="center" style={{ marginTop: 12 }}>No lineups yet</ThemedText>
-            <ThemedText variant="caption" align="center" style={{ marginTop: 4, marginBottom: 16 }}>
-              Create your first lineup to get started
-            </ThemedText>
+            <ThemedText variant="caption" align="center" style={{ marginTop: 4, marginBottom: 16 }}>Create your first lineup to get started</ThemedText>
             <Button title="Create Lineup" size="md" onPress={() => router.push('/lineups/editor')} />
           </Card>
         )}
@@ -194,7 +279,9 @@ export default function HomeScreen() {
           {[
             { icon: 'plus-circle', label: 'Create Lineup', route: '/lineups/editor' },
             { icon: 'bookmark', label: 'Saved Lineups', route: '/lineups' },
+            { icon: 'calendar', label: 'Schedule', route: '/schedule' },
             { icon: 'bar-chart-2', label: 'Stats & History', route: '/stats' },
+            { icon: 'book-open', label: 'Tutorial', route: '/tutorial' },
             { icon: 'settings', label: 'Settings', route: '/settings' },
           ].map((item) => (
             <TouchableOpacity
@@ -206,9 +293,7 @@ export default function HomeScreen() {
               <View style={[styles.gridIcon, { backgroundColor: colors.secondary }]}>
                 <Feather name={item.icon as any} size={22} color={colors.primary} />
               </View>
-              <ThemedText variant="label" align="center" style={{ marginTop: 8, color: colors.foreground }}>
-                {item.label}
-              </ThemedText>
+              <ThemedText variant="label" align="center" style={{ marginTop: 8, color: colors.foreground }}>{item.label}</ThemedText>
             </TouchableOpacity>
           ))}
         </View>
@@ -229,30 +314,18 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* ─── Restore Backup Modal ─── */}
-      <Modal
-        visible={showRestorePrompt}
-        transparent
-        animationType="slide"
-        onRequestClose={handleDeclineRestore}
-      >
+      {/* Restore Backup Modal */}
+      <Modal visible={showRestorePrompt} transparent animationType="slide" onRequestClose={handleDeclineRestore}>
         <View style={restoreStyles.overlay}>
           <View style={[restoreStyles.sheet, { backgroundColor: colors.card, paddingBottom: botPad + 20 }]}>
             <View style={[restoreStyles.handle, { backgroundColor: colors.border }]} />
-
-            {/* Icon */}
             <View style={[restoreStyles.iconWrap, { backgroundColor: colors.secondary }]}>
               <Feather name="database" size={32} color={colors.primary} />
             </View>
-
-            <ThemedText variant="h2" align="center" style={{ marginTop: 16 }}>
-              Welcome back!
-            </ThemedText>
+            <ThemedText variant="h2" align="center" style={{ marginTop: 16 }}>Welcome back!</ThemedText>
             <ThemedText variant="body" align="center" style={{ marginTop: 8, color: colors.mutedForeground, paddingHorizontal: 8 }}>
               We found a backup from {backupDate}.
             </ThemedText>
-
-            {/* Backup contents */}
             <View style={[restoreStyles.contentRow, { backgroundColor: colors.background, borderColor: colors.border }]}>
               <View style={restoreStyles.contentItem}>
                 <ThemedText variant="h2" color={colors.primary}>{lineupCountInBackup}</ThemedText>
@@ -264,27 +337,11 @@ export default function HomeScreen() {
                 <ThemedText variant="caption">Game{gameCountInBackup !== 1 ? 's' : ''}</ThemedText>
               </View>
             </View>
-
             <ThemedText variant="caption" align="center" style={{ color: colors.mutedForeground, marginBottom: 20, paddingHorizontal: 8 }}>
               Restore to pick up right where you left off.
             </ThemedText>
-
-            <Button
-              title={isRestoring ? 'Restoring...' : 'Restore My Data'}
-              size="lg"
-              fullWidth
-              disabled={isRestoring}
-              onPress={handleRestore}
-              style={{ marginBottom: 10 }}
-            />
-            <Button
-              title="Start Fresh"
-              variant="outline"
-              size="lg"
-              fullWidth
-              disabled={isRestoring}
-              onPress={handleDeclineRestore}
-            />
+            <Button title={isRestoring ? 'Restoring...' : 'Restore My Data'} size="lg" fullWidth disabled={isRestoring} onPress={handleRestore} style={{ marginBottom: 10 }} />
+            <Button title="Start Fresh" variant="outline" size="lg" fullWidth disabled={isRestoring} onPress={handleDeclineRestore} />
           </View>
         </View>
       </Modal>
@@ -297,63 +354,34 @@ const restoreStyles = StyleSheet.create({
   sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, alignItems: 'center' },
   handle: { width: 40, height: 4, borderRadius: 2, marginBottom: 20 },
   iconWrap: { width: 72, height: 72, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  contentRow: {
-    flexDirection: 'row',
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
-    marginVertical: 16,
-    width: '100%',
-  },
+  contentRow: { flexDirection: 'row', borderWidth: 1, borderRadius: 14, padding: 16, marginVertical: 16, width: '100%' },
   contentItem: { flex: 1, alignItems: 'center', gap: 4 },
   divider: { width: 1, marginHorizontal: 8 },
 });
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  content: { paddingHorizontal: 20, gap: 16 },
+  content: { paddingHorizontal: 20, gap: 14 },
   logoSection: { alignItems: 'center', marginBottom: 4 },
   logo: { width: 200, height: 80 },
-  modeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
+  modeBadge: { flexDirection: 'row', alignItems: 'center', alignSelf: 'center', borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6 },
+  resumeBanner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderRadius: 14, padding: 16 },
+  resumeLeft: { flexDirection: 'row', alignItems: 'center' },
+  scheduleCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 12 },
+  scheduleDateBlock: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  scheduleStartBtn: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   quickCard: {},
   quickCardHeader: { flexDirection: 'row', alignItems: 'center' },
   quickMeta: { flexDirection: 'row', gap: 12, marginVertical: 10 },
   metaChip: { flexDirection: 'row', alignItems: 'center' },
   quickActions: { flexDirection: 'row', gap: 10, marginTop: 4 },
-  editBtn: {
-    width: 44,
-    height: 44,
-    borderWidth: 1,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  editBtn: { width: 44, height: 44, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   emptyCard: { alignItems: 'center', padding: 28, borderWidth: 1.5 },
   primaryBtn: { marginTop: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  gridItem: {
-    width: '47.5%',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
+  gridItem: { width: '47.5%', alignItems: 'center', padding: 16, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
   gridIcon: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  statsStrip: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 8,
-    gap: 32,
-  },
+  statsStrip: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 8, gap: 32 },
   statItem: { alignItems: 'center', gap: 2 },
   statDivider: { width: 1, height: 32 },
 });

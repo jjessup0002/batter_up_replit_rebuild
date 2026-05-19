@@ -17,8 +17,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppProvider } from "@/context/AppContext";
 import { GameProvider } from "@/context/GameContext";
-import { getSettings } from "@/services/storage";
-import { performAutoBackup } from "@/services/storage";
+import { getSettings, performAutoBackup } from "@/services/storage";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -30,6 +29,7 @@ function RootLayoutNav() {
       <Stack.Screen name="index" />
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="home" />
+      <Stack.Screen name="tutorial" />
       <Stack.Screen name="lineups/index" />
       <Stack.Screen name="lineups/editor" />
       <Stack.Screen name="game/setup" />
@@ -37,6 +37,8 @@ function RootLayoutNav() {
       <Stack.Screen name="game/summary" />
       <Stack.Screen name="stats/index" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="schedule/index" />
+      <Stack.Screen name="schedule/editor" />
     </Stack>
   );
 }

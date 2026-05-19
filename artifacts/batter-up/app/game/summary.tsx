@@ -1,44 +1,115 @@
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Platform, ScrollView, Share, StyleSheet, TouchableOpacity, View } from 'react-native';
+import { Linking, Modal, Platform, ScrollView, Share, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { Button } from '@/components/ui/Button';
+import { useApp } from '@/context/AppContext';
 import { GameState, Player, PlayerStats } from '@/models/types';
 import { calculatePlayerStats, formatStat } from '@/services/statsCalculator';
-import { getGames } from '@/services/storage';
+import { getGames, getSettings, shouldShowReviewPrompt, updateSettings } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
+
+// ─── Review Prompt Modal ───────────────────────────────────────────────────────
+
+function ReviewPromptModal({
+  visible, onLeaveReview, onDecline,
+}: {
+  visible: boolean; onLeaveReview: () => void; onDecline: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onDecline}>
+      <View style={rvStyles.overlay}>
+        <View style={[rvStyles.sheet, { backgroundColor: colors.card, paddingBottom: botPad + 16 }]}>
+          <View style={[rvStyles.handle, { backgroundColor: colors.border }]} />
+          <View style={[rvStyles.stars]}>
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Feather key={i} name="star" size={28} color={colors.accent} />
+            ))}
+          </View>
+          <ThemedText variant="h2" align="center" style={{ marginTop: 16 }}>Enjoying Batter Up?</ThemedText>
+          <ThemedText variant="body" align="center" color={colors.mutedForeground} style={{ marginTop: 8, marginBottom: 24, paddingHorizontal: 8 }}>
+            It only takes a moment and helps other coaches find the app. Would you leave a review?
+          </ThemedText>
+          <Button title="Leave a Review" size="lg" fullWidth onPress={onLeaveReview} style={{ marginBottom: 10 }} />
+          <Button title="Not Right Now" variant="outline" size="lg" fullWidth onPress={onDecline} />
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const rvStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, alignItems: 'center' },
+  handle: { width: 40, height: 4, borderRadius: 2, marginBottom: 20 },
+  stars: { flexDirection: 'row', gap: 8 },
+});
+
+// ─── Main Summary Screen ───────────────────────────────────────────────────────
 
 export default function GameSummaryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { reloadSettings } = useApp();
   const { gameId } = useLocalSearchParams<{ gameId?: string }>();
   const [game, setGame] = useState<GameState | null>(null);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
+  const [showReview, setShowReview] = useState(false);
 
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
   useEffect(() => {
-    getGames().then((games) => {
+    getGames().then(async (games) => {
       const g = games.find((g) => g.id === gameId) ?? games[games.length - 1];
       if (!g) return;
       setGame(g);
       const players = g.setup.lineupSnapshot;
       const stats = players.map((p) => calculatePlayerStats(p.id, p.name, [g]));
       setPlayerStats(stats);
+
+      // Check if we should show the review prompt (only for real games)
+      if (!g.setup.isDemoMode) {
+        const s = await getSettings();
+        if (shouldShowReviewPrompt(s)) {
+          // Small delay so it doesn't appear immediately
+          setTimeout(() => setShowReview(true), 2000);
+        }
+      }
     });
   }, [gameId]);
+
+  const handleLeaveReview = async () => {
+    setShowReview(false);
+    const s = await getSettings();
+    await updateSettings({ ...s, hasClickedReview: true });
+    await reloadSettings();
+    // Open App Store / Play Store
+    if (Platform.OS === 'ios') {
+      Linking.openURL('https://apps.apple.com/search?term=batter+up+baseball+coach').catch(() => {});
+    } else {
+      Linking.openURL('https://play.google.com/store/search?q=batter+up+baseball+coach').catch(() => {});
+    }
+  };
+
+  const handleDeclineReview = async () => {
+    setShowReview(false);
+    const s = await getSettings();
+    await updateSettings({ ...s, reviewDeclineCount: (s.reviewDeclineCount ?? 0) + 1 });
+    await reloadSettings();
+  };
 
   if (!game) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <View style={styles.center}>
-          <ThemedText variant="h3">Loading summary...</ThemedText>
-        </View>
+        <View style={styles.center}><ThemedText variant="h3">Loading summary...</ThemedText></View>
       </View>
     );
   }
@@ -53,17 +124,11 @@ export default function GameSummaryScreen() {
   });
 
   const topHitters = [...playerStats].sort((a, b) => b.hits - a.hits).slice(0, 3);
-  const topRbis = [...playerStats].sort((a, b) => b.rbis - a.rbis).slice(0, 2);
-
   const totalHits = playerStats.reduce((s, p) => s + p.hits, 0);
   const totalWalks = playerStats.reduce((s, p) => s + p.walks, 0);
   const totalKs = playerStats.reduce((s, p) => s + p.strikeouts, 0);
 
   const shareText = `Game Summary — ${game.setup.teamName} vs ${game.setup.opponentName}\n${gameDate}\n\n${game.setup.teamName}: ${game.myScore}\n${game.setup.opponentName}: ${game.opponentScore}\n\nTotal Hits: ${totalHits}\nResult: ${resultLabel}`;
-
-  const handleShare = () => {
-    Share.share({ message: shareText }).catch(() => {});
-  };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -72,7 +137,7 @@ export default function GameSummaryScreen() {
           <Feather name="home" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <ThemedText variant="h2">Game Summary</ThemedText>
-        <TouchableOpacity onPress={handleShare} style={{ marginLeft: 'auto' }}>
+        <TouchableOpacity onPress={() => Share.share({ message: shareText }).catch(() => {})} style={{ marginLeft: 'auto' }}>
           <Feather name="share" size={20} color={colors.primary} />
         </TouchableOpacity>
       </View>
@@ -84,7 +149,6 @@ export default function GameSummaryScreen() {
             <ThemedText variant="label" color="#fff" style={{ fontWeight: '700' }}>{resultLabel}</ThemedText>
           </View>
           <ThemedText variant="caption" color="rgba(255,255,255,0.6)" align="center" style={{ marginBottom: 16 }}>{gameDate}</ThemedText>
-
           <View style={styles.finalScore}>
             <View style={styles.teamScore}>
               <ThemedText variant="caption" color="rgba(255,255,255,0.7)" numberOfLines={1}>{game.setup.teamName}</ThemedText>
@@ -128,33 +192,19 @@ export default function GameSummaryScreen() {
                 ))}
                 <ThemedText variant="caption" style={[styles.inningCell, { fontWeight: '700' }]}>R</ThemedText>
               </View>
-              {/* User team row */}
               <View style={[styles.inningRow, { backgroundColor: colors.secondary }]}>
-                <ThemedText variant="caption" style={[styles.inningCell, { fontWeight: '600' }]} numberOfLines={1}>
-                  {game.setup.teamName.slice(0, 8)}
-                </ThemedText>
+                <ThemedText variant="caption" style={[styles.inningCell, { fontWeight: '600' }]} numberOfLines={1}>{game.setup.teamName.slice(0, 8)}</ThemedText>
                 {game.inningScores.map((s) => (
-                  <ThemedText key={s.inning} variant="caption" style={styles.inningCell}>
-                    {game.setup.isHome ? s.bottomRuns : s.topRuns}
-                  </ThemedText>
+                  <ThemedText key={s.inning} variant="caption" style={styles.inningCell}>{game.setup.isHome ? s.bottomRuns : s.topRuns}</ThemedText>
                 ))}
-                <ThemedText variant="caption" style={[styles.inningCell, { fontWeight: '700', color: colors.primary }]}>
-                  {game.myScore}
-                </ThemedText>
+                <ThemedText variant="caption" style={[styles.inningCell, { fontWeight: '700', color: colors.primary }]}>{game.myScore}</ThemedText>
               </View>
-              {/* Opponent row */}
               <View style={styles.inningRow}>
-                <ThemedText variant="caption" style={[styles.inningCell, { fontWeight: '600' }]} numberOfLines={1}>
-                  {game.setup.opponentName.slice(0, 8)}
-                </ThemedText>
+                <ThemedText variant="caption" style={[styles.inningCell, { fontWeight: '600' }]} numberOfLines={1}>{game.setup.opponentName.slice(0, 8)}</ThemedText>
                 {game.inningScores.map((s) => (
-                  <ThemedText key={s.inning} variant="caption" style={styles.inningCell}>
-                    {game.setup.isHome ? s.topRuns : s.bottomRuns}
-                  </ThemedText>
+                  <ThemedText key={s.inning} variant="caption" style={styles.inningCell}>{game.setup.isHome ? s.topRuns : s.bottomRuns}</ThemedText>
                 ))}
-                <ThemedText variant="caption" style={[styles.inningCell, { fontWeight: '700' }]}>
-                  {game.opponentScore}
-                </ThemedText>
+                <ThemedText variant="caption" style={[styles.inningCell, { fontWeight: '700' }]}>{game.opponentScore}</ThemedText>
               </View>
             </View>
           </Card>
@@ -184,7 +234,6 @@ export default function GameSummaryScreen() {
         {playerStats.length > 0 && game.setup.rules.mode === 'advanced' && (
           <Card>
             <ThemedText variant="h3" style={{ marginBottom: 12 }}>Player Stats</ThemedText>
-            {/* Header */}
             <View style={[styles.tableRow, { backgroundColor: colors.muted, borderRadius: 6 }]}>
               <ThemedText variant="caption" style={[styles.nameCell, { fontWeight: '700' }]}>Player</ThemedText>
               {['AB', 'H', 'R', 'RBI', 'BB', 'K', 'AVG'].map((h) => (
@@ -208,9 +257,15 @@ export default function GameSummaryScreen() {
 
         <View style={styles.buttons}>
           <Button title="Back to Home" size="lg" fullWidth onPress={() => router.replace('/home')} />
-          <Button title="Share Summary" variant="outline" size="lg" fullWidth onPress={handleShare} style={{ marginTop: 10 }} />
+          <Button title="Share Summary" variant="outline" size="lg" fullWidth onPress={() => Share.share({ message: shareText }).catch(() => {})} style={{ marginTop: 10 }} />
         </View>
       </ScrollView>
+
+      <ReviewPromptModal
+        visible={showReview}
+        onLeaveReview={handleLeaveReview}
+        onDecline={handleDeclineReview}
+      />
     </View>
   );
 }
@@ -218,13 +273,7 @@ export default function GameSummaryScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   backBtn: { padding: 4, marginRight: 8 },
   content: { padding: 16, gap: 14 },
   scoreCard: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 20 },

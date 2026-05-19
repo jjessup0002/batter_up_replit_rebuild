@@ -18,21 +18,24 @@ import { ThemedText } from '@/components/ui/ThemedText';
 import { useApp } from '@/context/AppContext';
 import { useGame } from '@/context/GameContext';
 import { AppMode, GameRules, GameSetup, GameType, Lineup } from '@/models/types';
-import { getLineups, markLineupUsed } from '@/services/storage';
+import { getLineups, getSchedule, markLineupUsed } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
 export default function GameSetupScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { lineupId } = useLocalSearchParams<{ lineupId?: string }>();
+  const { lineupId, scheduledGameId, opponent } = useLocalSearchParams<{
+    lineupId?: string; scheduledGameId?: string; opponent?: string;
+  }>();
   const { settings, presets } = useApp();
   const { startGame } = useGame();
 
   const [lineups, setLineups] = useState<Lineup[]>([]);
   const [selectedLineupId, setSelectedLineupId] = useState(lineupId ?? '');
-  const [opponentName, setOpponentName] = useState('');
+  const [opponentName, setOpponentName] = useState(opponent ?? '');
   const [isHome, setIsHome] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
   const [mode, setMode] = useState<AppMode>(settings.mode);
   const [gameType, setGameType] = useState<GameType>(settings.defaultGameType);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -60,7 +63,11 @@ export default function GameSetupScreen() {
     getLineups().then(setLineups);
   }, []);
 
-  // Apply a preset (using user-customized presets)
+  // If coming from schedule, pre-fill opponent
+  useEffect(() => {
+    if (opponent) setOpponentName(opponent);
+  }, [opponent]);
+
   const applyPreset = (type: GameType) => {
     setGameType(type);
     const preset = presets[type];
@@ -87,6 +94,8 @@ export default function GameSetupScreen() {
       isHome,
       rules: finalRules,
       date: new Date().toISOString(),
+      isDemoMode: isDemoMode || undefined,
+      scheduledGameId: scheduledGameId || undefined,
     };
 
     startGame(setup);
@@ -94,10 +103,7 @@ export default function GameSetupScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.header, { paddingTop: topPad + 8, borderBottomColor: colors.border, backgroundColor: colors.card }]}>
         <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/home')} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={colors.foreground} />
@@ -114,19 +120,40 @@ export default function GameSetupScreen() {
             {(['basic', 'advanced'] as AppMode[]).map((m) => (
               <TouchableOpacity
                 key={m}
-                style={[
-                  styles.modeBtn,
-                  { backgroundColor: mode === m ? colors.primary : colors.muted, flex: 1 },
-                ]}
+                style={[styles.modeBtn, { backgroundColor: mode === m ? colors.primary : colors.muted, flex: 1 }]}
                 onPress={() => setMode(m)}
               >
                 <Feather name={m === 'basic' ? 'zap' : 'activity'} size={14} color={mode === m ? '#fff' : colors.mutedForeground} />
-                <ThemedText variant="label" color={mode === m ? '#fff' : colors.foreground} style={{ marginLeft: 6 }}>
-                  {m === 'basic' ? 'Basic' : 'Advanced'}
-                </ThemedText>
+                <ThemedText variant="label" color={mode === m ? '#fff' : colors.foreground} style={{ marginLeft: 6 }}>{m === 'basic' ? 'Basic' : 'Advanced'}</ThemedText>
               </TouchableOpacity>
             ))}
           </View>
+        </Card>
+
+        {/* Sandbox Mode */}
+        <Card style={{ marginBottom: 14 }}>
+          <View style={styles.switchRow}>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={[styles.sandboxIcon, { backgroundColor: isDemoMode ? '#FFF8E1' : colors.muted }]}>
+                  <Feather name="activity" size={16} color={isDemoMode ? '#E65100' : colors.mutedForeground} />
+                </View>
+                <ThemedText variant="body" style={{ fontWeight: '600' }}>Sandbox Mode</ThemedText>
+              </View>
+              <ThemedText variant="caption" color={colors.mutedForeground} style={{ marginTop: 4 }}>
+                Step through a simulated game to test your lineup. Stats are not saved.
+              </ThemedText>
+            </View>
+            <Switch value={isDemoMode} onValueChange={setIsDemoMode} trackColor={{ true: '#E65100' }} />
+          </View>
+          {isDemoMode && (
+            <View style={[styles.sandboxNote, { backgroundColor: '#FFF8E1', borderColor: '#FFE082' }]}>
+              <Feather name="info" size={13} color="#E65100" />
+              <ThemedText variant="caption" style={{ marginLeft: 6, color: '#E65100', flex: 1 }}>
+                Results won't be recorded in your stats or game history.
+              </ThemedText>
+            </View>
+          )}
         </Card>
 
         {/* Lineup picker */}
@@ -149,10 +176,7 @@ export default function GameSetupScreen() {
               {lineups.map((l) => (
                 <TouchableOpacity
                   key={l.id}
-                  style={[
-                    styles.lineupOption,
-                    { borderColor: selectedLineupId === l.id ? colors.primary : colors.border, backgroundColor: selectedLineupId === l.id ? colors.secondary : colors.background },
-                  ]}
+                  style={[styles.lineupOption, { borderColor: selectedLineupId === l.id ? colors.primary : colors.border, backgroundColor: selectedLineupId === l.id ? colors.secondary : colors.background }]}
                   onPress={() => setSelectedLineupId(l.id)}
                 >
                   <View style={[styles.radioOuter, { borderColor: selectedLineupId === l.id ? colors.primary : colors.border }]}>
@@ -207,17 +231,12 @@ export default function GameSetupScreen() {
               return (
                 <TouchableOpacity
                   key={g.id}
-                  style={[
-                    styles.presetBtn,
-                    { backgroundColor: gameType === g.id ? colors.primary : colors.muted, borderColor: gameType === g.id ? colors.primary : colors.border },
-                  ]}
+                  style={[styles.presetBtn, { backgroundColor: gameType === g.id ? colors.primary : colors.muted, borderColor: gameType === g.id ? colors.primary : colors.border }]}
                   onPress={() => applyPreset(g.id)}
                 >
                   <ThemedText variant="label" color={gameType === g.id ? '#fff' : colors.foreground}>{g.label}</ThemedText>
                   {p.innings !== undefined && (
-                    <ThemedText variant="caption" color={gameType === g.id ? 'rgba(255,255,255,0.7)' : colors.mutedForeground}>
-                      {p.innings} inn
-                    </ThemedText>
+                    <ThemedText variant="caption" color={gameType === g.id ? 'rgba(255,255,255,0.7)' : colors.mutedForeground}>{p.innings} inn</ThemedText>
                   )}
                 </TouchableOpacity>
               );
@@ -226,10 +245,7 @@ export default function GameSetupScreen() {
         </Card>
 
         {/* Advanced rules */}
-        <TouchableOpacity
-          style={[styles.advancedToggle, { borderColor: colors.border }]}
-          onPress={() => setShowAdvanced((v) => !v)}
-        >
+        <TouchableOpacity style={[styles.advancedToggle, { borderColor: colors.border }]} onPress={() => setShowAdvanced((v) => !v)}>
           <ThemedText variant="body" style={{ flex: 1 }}>Advanced Rules</ThemedText>
           <Feather name={showAdvanced ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} />
         </TouchableOpacity>
@@ -243,32 +259,19 @@ export default function GameSetupScreen() {
               <View key={field.key} style={styles.ruleRow}>
                 <ThemedText variant="body" style={{ flex: 1 }}>{field.label}</ThemedText>
                 <View style={styles.stepper}>
-                  <TouchableOpacity
-                    style={[styles.stepBtn, { borderColor: colors.border }]}
-                    onPress={() => setRules((r) => ({ ...r, [field.key]: Math.max(field.min, (r[field.key] as number) - 1) }))}
-                  >
+                  <TouchableOpacity style={[styles.stepBtn, { borderColor: colors.border }]} onPress={() => setRules((r) => ({ ...r, [field.key]: Math.max(field.min, (r[field.key] as number) - 1) }))}>
                     <Feather name="minus" size={16} color={colors.foreground} />
                   </TouchableOpacity>
-                  <ThemedText variant="body" style={{ minWidth: 24, textAlign: 'center' }}>
-                    {rules[field.key]}
-                  </ThemedText>
-                  <TouchableOpacity
-                    style={[styles.stepBtn, { borderColor: colors.border }]}
-                    onPress={() => setRules((r) => ({ ...r, [field.key]: Math.min(field.max, (r[field.key] as number) + 1) }))}
-                  >
+                  <ThemedText variant="body" style={{ minWidth: 24, textAlign: 'center' }}>{rules[field.key]}</ThemedText>
+                  <TouchableOpacity style={[styles.stepBtn, { borderColor: colors.border }]} onPress={() => setRules((r) => ({ ...r, [field.key]: Math.min(field.max, (r[field.key] as number) + 1) }))}>
                     <Feather name="plus" size={16} color={colors.foreground} />
                   </TouchableOpacity>
                 </View>
               </View>
             ))}
-
             <View style={styles.switchRow}>
               <ThemedText variant="body">Max runs per inning</ThemedText>
-              <Switch
-                value={rules.maxRunsPerHalfInning !== null}
-                onValueChange={(v) => setRules((r) => ({ ...r, maxRunsPerHalfInning: v ? 6 : null }))}
-                trackColor={{ true: colors.primary }}
-              />
+              <Switch value={rules.maxRunsPerHalfInning !== null} onValueChange={(v) => setRules((r) => ({ ...r, maxRunsPerHalfInning: v ? 6 : null }))} trackColor={{ true: colors.primary }} />
             </View>
             {rules.maxRunsPerHalfInning !== null && (
               <View style={styles.ruleRow}>
@@ -284,16 +287,11 @@ export default function GameSetupScreen() {
                 </View>
               </View>
             )}
-
             {mode === 'advanced' && (
               <>
                 <View style={styles.switchRow}>
                   <ThemedText variant="body">Track balls & strikes</ThemedText>
-                  <Switch
-                    value={rules.trackBalls}
-                    onValueChange={(v) => setRules((r) => ({ ...r, trackBalls: v, trackStrikes: v }))}
-                    trackColor={{ true: colors.primary }}
-                  />
+                  <Switch value={rules.trackBalls} onValueChange={(v) => setRules((r) => ({ ...r, trackBalls: v, trackStrikes: v }))} trackColor={{ true: colors.primary }} />
                 </View>
                 {rules.trackBalls && (
                   <View style={styles.ruleRow}>
@@ -315,18 +313,16 @@ export default function GameSetupScreen() {
         )}
 
         <Button
-          title="Start Game"
+          title={isDemoMode ? 'Start Sandbox Session' : 'Start Game'}
           size="xl"
           fullWidth
           disabled={!selectedLineupId || activePlayers.length === 0}
-          icon={<Feather name="play" size={18} color="#fff" />}
+          icon={<Feather name={isDemoMode ? 'activity' : 'play'} size={18} color="#fff" />}
           onPress={handleStart}
           style={{ marginTop: 8 }}
         />
         {!selectedLineupId && (
-          <ThemedText variant="caption" align="center" color={colors.destructive} style={{ marginTop: 8 }}>
-            Select a lineup to continue
-          </ThemedText>
+          <ThemedText variant="caption" align="center" color={colors.destructive} style={{ marginTop: 8 }}>Select a lineup to continue</ThemedText>
         )}
       </ScrollView>
     </KeyboardAvoidingView>
@@ -334,13 +330,7 @@ export default function GameSetupScreen() {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   backBtn: { padding: 4, marginRight: 8 },
   content: { padding: 16 },
   modeToggle: { flexDirection: 'row', gap: 8 },
@@ -358,4 +348,6 @@ const styles = StyleSheet.create({
   ruleRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   stepBtn: { width: 32, height: 32, borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  sandboxIcon: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  sandboxNote: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 12, padding: 10, borderRadius: 8, borderWidth: 1 },
 });
