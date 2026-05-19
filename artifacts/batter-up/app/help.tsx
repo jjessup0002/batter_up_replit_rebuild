@@ -69,8 +69,8 @@ const HELP_DATA: HelpSection[] = [
       },
       {
         title: 'How do I start a game?',
-        body: 'From the Lineups screen, tap a lineup and then tap "Start Game." On the Game Setup screen, choose your opponent, pick home or away, and confirm your game rules. Then tap "Start Game" at the bottom.',
-        tags: ['start', 'game', 'begin'],
+        body: 'From the Home screen, tap the big "Start Game" button. Choose New Game, Continue Game, or Scheduled Game. New Game lets you load a saved lineup or create a new one, then takes you to Game Setup to confirm your rules before going live.',
+        tags: ['start', 'game', 'begin', 'new game', 'chooser'],
       },
       {
         title: 'How do I use Next Batter?',
@@ -105,6 +105,55 @@ const HELP_DATA: HelpSection[] = [
     icon: 'book-open',
     color: '#0A74DA',
     items: [
+      // Start Game Flow — new chooser walkthroughs
+      {
+        title: 'Start Game: Overview of the new flow',
+        body: 'Start Game is the main button on the Home screen. It opens a chooser with three options: New Game, Continue Game, and Scheduled Game.',
+        tags: ['start game', 'chooser', 'home', 'overview', 'new flow'],
+        steps: [
+          { title: 'Start Game is the main button', body: 'On the Home screen, the big "Start Game" button is the primary action. Everything else — Saved Lineups, Schedule, Stats — lives below it as a supporting menu.' },
+          { title: 'Choose how to start', body: 'Tapping Start Game opens a sheet with three clear choices: New Game, Continue Game, and Scheduled Game. Pick the one that matches what you want to do right now.' },
+          { title: 'New Game starts fresh', body: 'Pick New Game when you want to begin a brand-new game. You will be asked to load a saved lineup or create a new one, then taken to Game Setup.' },
+          { title: 'Continue Game resumes', body: 'Pick Continue Game when a game is already in progress. This option is greyed out when there is nothing to resume — that just means you have no unfinished games on the device.' },
+          { title: 'Scheduled Game starts from your calendar', body: 'Pick Scheduled Game to start from a game you already planned. If you do not have any scheduled games yet, you can add one from the Schedule screen.' },
+        ],
+      },
+      {
+        title: 'Start Game: New Game step-by-step',
+        body: 'New Game starts a fresh game. You load a lineup, confirm settings, then go live.',
+        tags: ['new game', 'start', 'lineup', 'setup'],
+        steps: [
+          { title: 'Tap Start Game on Home', body: 'From the Home screen, tap the big Start Game button to open the chooser.' },
+          { title: 'Choose New Game', body: 'Pick the New Game card. You will be asked how you want to pick your lineup.' },
+          { title: 'Load saved or create new', body: 'Tap "Load Saved Lineup" to pick from your existing lineups, or "Create New Lineup" to build one from scratch.' },
+          { title: 'Confirm Game Setup', body: 'On the Game Setup screen, confirm opponent, home/away, game type preset, innings, outs, and run limits.' },
+          { title: 'Start tracking', body: 'Tap Start Game at the bottom of setup. The Live Game screen opens and you can start recording at-bats.' },
+        ],
+      },
+      {
+        title: 'Start Game: Continue Game step-by-step',
+        body: 'Continue Game resumes the active game. Everything is restored exactly where you left it — no setup screen.',
+        tags: ['continue game', 'resume', 'in progress'],
+        steps: [
+          { title: 'Tap Start Game on Home', body: 'From Home, tap Start Game to open the chooser.' },
+          { title: 'Choose Continue Game', body: 'Pick the Continue Game card. If you do not see it active, you have no in-progress game saved.' },
+          { title: 'Everything is restored', body: 'The lineup, current batter, on-deck batter, score, inning, half-inning, outs, balls/strikes, pitch count, and all events come back exactly as you left them.' },
+          { title: 'Resume tracking', body: 'You go straight to the Live Game screen. Game Setup is skipped — you can open Game Options from inside the live game if you need to adjust anything.' },
+          { title: 'Or use the Game in Progress card', body: 'You can also tap the dark "Game in Progress" card at the top of Home for one-tap resume.' },
+        ],
+      },
+      {
+        title: 'Start Game: Scheduled Game step-by-step',
+        body: 'Scheduled Game starts from a planned game. Pick or create the scheduled game, then choose your lineup.',
+        tags: ['scheduled game', 'schedule', 'plan', 'opponent'],
+        steps: [
+          { title: 'Tap Start Game on Home', body: 'From Home, tap Start Game to open the chooser.' },
+          { title: 'Choose Scheduled Game', body: 'Pick the Scheduled Game card. This opens the Schedule screen.' },
+          { title: 'Pick or create a game', body: 'Tap an upcoming game to start it, or tap "Add Scheduled Game" to create one with opponent name, date, time, and home/away.' },
+          { title: 'Choose the lineup', body: 'The scheduled game can use a saved lineup you assigned to it, or you can pick or create a lineup at this step.' },
+          { title: 'Confirm Game Setup and play', body: 'Game Setup pre-fills opponent and home/away from the schedule. Confirm rules and tap Start Game to go live.' },
+        ],
+      },
       // Getting Started
       {
         title: 'Getting Started: Basic Mode vs Advanced Mode',
@@ -274,6 +323,46 @@ const HELP_DATA: HelpSection[] = [
         title: 'I tapped the wrong button',
         body: 'No problem. Tap Undo on the Live Game screen to reverse the last action. Batter Up keeps a history of recent events so you can undo multiple times if needed.',
         tags: ['undo', 'wrong', 'mistake', 'tap'],
+      },
+      {
+        title: 'I do not see Continue Game',
+        body: 'What probably happened: Continue Game is greyed out or hidden because there is no in-progress game on this device. The most recent game was either finished or never started.\n\nHow to fix it now: Tap Start Game and pick New Game (or Scheduled Game) instead. If you expected to resume a game, check Stats > Game History — it may have already been marked complete.\n\nHow to avoid it next time: Do not tap End Game until you are truly done. If you need to step away, just leave the app — the game is saved automatically and Continue Game will be available when you return.',
+        tags: ['continue game', 'missing', 'disabled', 'resume', 'no game'],
+      },
+      {
+        title: 'I accidentally went back to Home during a game',
+        body: 'What probably happened: You navigated away from the Live Game screen. The game is still saved.\n\nHow to fix it now: From Home, either tap the dark "Game in Progress" card and hit Resume, or tap Start Game and pick Continue Game. Everything is restored exactly as you left it.\n\nHow to avoid it next time: Nothing to do — your game is auto-saved after every action, so leaving the screen never loses data.',
+        tags: ['back to home', 'accidental', 'resume', 'lost game'],
+      },
+      {
+        title: 'I want to resume a game',
+        body: 'What probably happened: You started a game earlier and want to pick it back up.\n\nHow to fix it now: On Home, look for the dark "Game in Progress" card at the top — tap Resume Game. Or tap Start Game > Continue Game.\n\nHow to avoid it next time: You can always reach an in-progress game from the Home screen card or the Start Game chooser. No setup needed.',
+        tags: ['resume', 'continue', 'pick up game'],
+      },
+      {
+        title: 'I want to start a new game with a saved lineup',
+        body: 'What probably happened: You want to use one of your existing lineups for a fresh game.\n\nHow to fix it now: Tap Start Game > New Game > Load Saved Lineup. Pick the lineup, confirm Game Setup, then tap Start Game.\n\nHow to avoid it next time: You can also tap Saved Lineups directly from the Home grid, pick the lineup, and use its Start Game action.',
+        tags: ['new game', 'saved lineup', 'load lineup'],
+      },
+      {
+        title: 'I do not have any saved lineups yet',
+        body: 'What probably happened: You are brand new to the app, or you have not created any lineups.\n\nHow to fix it now: Tap Start Game > New Game > Create New Lineup. The Lineup Editor opens — add your players, set the batting order, and save. Then you continue straight to Game Setup.\n\nHow to avoid it next time: After your first game, your lineup stays saved. You can also create more lineups from Saved Lineups on the Home grid.',
+        tags: ['no lineups', 'empty', 'first lineup', 'create lineup'],
+      },
+      {
+        title: 'I do not have any scheduled games yet',
+        body: 'What probably happened: You picked Scheduled Game but you have not added any to the schedule.\n\nHow to fix it now: From the Schedule screen, tap "Add Scheduled Game" and fill in opponent name, date, time, and home/away. Then you can start it from the Start Game chooser.\n\nHow to avoid it next time: Plan a week or season ahead — schedule lets you pre-assign lineups and pre-fill Game Setup for each opponent.',
+        tags: ['no scheduled games', 'schedule', 'empty schedule', 'create scheduled game'],
+      },
+      {
+        title: 'I am confused — what is the difference between a lineup and a game?',
+        body: 'What probably happened: The wording in the chooser is new, and a saved lineup vs an in-progress game can sound similar.\n\nHow to fix it now: A saved lineup is just your roster and batting order — it has no score, no inning, no events. A game in progress is an actual ongoing game built on top of a lineup, with score, outs, and at-bats recorded. Continue Game resumes the latter; Saved Lineups manages the former.\n\nHow to avoid it next time: Use Start Game > New Game to begin a fresh game from a lineup. Use Start Game > Continue Game (or the dark Home card) to pick back up an active game. Use Saved Lineups only when you want to edit, duplicate, or delete the roster itself.',
+        tags: ['confused', 'lineup vs game', 'difference', 'saved lineup', 'game in progress'],
+      },
+      {
+        title: 'I started the wrong game type',
+        body: 'What probably happened: You picked New Game when you meant Continue Game, or you began a game from the wrong lineup.\n\nHow to fix it now: From the Live Game screen, open Game Menu and tap End Game (you can discard it from the prompt). Then tap Start Game on Home and pick the right option.\n\nHow to avoid it next time: Read the chooser cards before tapping. New Game = start fresh. Continue Game = resume. Scheduled Game = start from a planned game.',
+        tags: ['wrong game', 'restart', 'mistake', 'discard game'],
       },
       {
         title: 'The next batter did not change',

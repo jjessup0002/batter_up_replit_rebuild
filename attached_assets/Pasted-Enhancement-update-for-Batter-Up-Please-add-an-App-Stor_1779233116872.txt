@@ -1,0 +1,266 @@
+Enhancement update for Batter Up.
+
+Please add an App Store / Play Store review prompt system to the current app.
+
+Goal:
+Encourage happy users to leave a review without being annoying or interrupting them during a game.
+
+This should feel respectful, optional, and coach-friendly.
+
+Use modern native review prompt behavior where possible.
+
+If this is a React Native / Expo app, use expo-store-review if available.
+
+Important:
+- Apple and Google may decide whether the native review prompt actually appears.
+- The app should track when it asks, but it should not assume the system review dialog always displays.
+- Do not force users to leave the app during a game.
+- Do not ask for a review while the coach is actively tracking a batter or in the middle of a game action.
+
+1. Track App Opens Locally
+
+Track how many times the app has been opened.
+
+Store this locally on the device.
+
+Suggested local fields:
+
+- appOpenCount
+- reviewPromptDeclineCount
+- hasPermanentlyDeclinedReviewPrompt
+- lastReviewPromptOpenCount
+- lastReviewPromptDate
+- hasAttemptedStoreReview
+
+Every time the app opens, increment appOpenCount by 1.
+
+Do not reset this count unless app data is cleared.
+
+2. When to Prompt
+
+Show the review prompt after the 5th app open.
+
+After that, if the user declines, ask again every 5 app opens.
+
+Example:
+
+- 5th app open: ask for review
+- User declines
+- 10th app open: ask again
+- User declines
+- 15th app open: ask again
+- User declines for the third time
+- Future prompts should include a permanent opt-out option
+
+Do not show the prompt if:
+
+- The user has permanently declined
+- The user is currently in the middle of an active game
+- The app opened directly into a live game
+- The user is in onboarding
+- The user is editing a lineup
+- The user has just encountered an error
+- The user is on a troubleshooting screen
+- The user is in a stressful or mistake-correction flow
+
+Good places to show the prompt:
+
+- Home screen
+- After saving a lineup
+- After completing a game and viewing the summary
+- After returning to Home from a completed game
+- After the user has successfully used the app several times
+
+If appOpenCount reaches the threshold while the user is in a game, wait until the user returns to Home or finishes the game.
+
+3. Prompt UI
+
+Use a friendly in-app pre-prompt first.
+
+Do not immediately trigger the native store review dialog without context.
+
+Title:
+
+Enjoying Batter Up?
+
+Message:
+
+If Batter Up is helping you manage games more easily, would you mind leaving a quick review? It helps other coaches find the app.
+
+Buttons:
+
+- Review Batter Up
+- Not Now
+
+After the third decline, show:
+
+Buttons:
+
+- Review Batter Up
+- Not Now
+- Don’t Ask Again
+
+4. Review Button Behavior
+
+When the user taps:
+
+Review Batter Up
+
+Then use the native in-app review flow if available.
+
+For Expo / React Native:
+
+- Check whether StoreReview is available
+- If available, call the native review prompt
+- If not available, open the appropriate store listing if the app store URL is configured
+- If no store URL exists yet, fail gracefully and show a friendly message
+
+Friendly fallback message:
+
+Review isn’t available yet, but thank you for supporting Batter Up.
+
+Do not crash if the app store listing is not configured yet.
+
+5. Not Now Behavior
+
+When the user taps:
+
+Not Now
+
+Then:
+
+- Increment reviewPromptDeclineCount by 1
+- Save lastReviewPromptOpenCount
+- Do not ask again until appOpenCount increases by at least 5 more opens
+
+Example:
+
+If prompted at open 5 and user taps Not Now, do not ask again until open 10.
+
+If prompted at open 10 and user taps Not Now, do not ask again until open 15.
+
+6. Don’t Ask Again Behavior
+
+After the user has declined 3 times, include:
+
+Don’t Ask Again
+
+When tapped:
+
+- Set hasPermanentlyDeclinedReviewPrompt to true
+- Do not show automatic review prompts again
+
+The user should still be able to manually access a review option from Settings if one exists.
+
+7. Settings Option
+
+Add a Settings item:
+
+Rate Batter Up
+
+When tapped:
+
+- Attempt to open the native review prompt or app store listing
+- This should work even if the user previously selected Don’t Ask Again
+- Do not change the automatic prompt opt-out unless the user explicitly changes it
+
+Optional Settings item:
+
+Review Prompt Preferences
+
+If added, allow:
+
+- Reset review reminder preference
+- Do not ask automatically
+
+Keep this simple. Do not overcomplicate Settings.
+
+8. Avoid Bad Prompt Timing
+
+Never show the review prompt:
+
+- During a live at-bat
+- Immediately after an error
+- Immediately after the user uses Undo
+- While editing game stats
+- While fixing a lineup issue
+- While viewing troubleshooting help
+- During onboarding
+- Before the user has created or used anything meaningful
+
+If possible, prefer showing it after a successful moment, such as:
+
+- Saved a lineup
+- Finished a game
+- Viewed a game summary
+- Returned to Home after successful use
+
+9. Copy Tone
+
+Use warm, simple language.
+
+Do not guilt the user.
+
+Do not say:
+
+- Please give us 5 stars
+- Rate us 5 stars
+- You must review
+- Support us now
+
+Use neutral language:
+
+- Leave a quick review
+- Review Batter Up
+- Not Now
+- Don’t Ask Again
+
+10. Update Tutorials and Help Content
+
+Update the Help Center, tutorials, setup guide, and troubleshooting content to include this new review prompt behavior.
+
+Make sure users can learn:
+
+- Why Batter Up may ask for a review
+- That leaving a review is optional
+- That they can tap Not Now
+- That after several declines they can choose Don’t Ask Again
+- That review prompts should not appear during active gameplay
+- Where to find Rate Batter Up in Settings
+
+Add or update troubleshooting topics:
+
+- Why am I being asked to review the app?
+- Can I stop review reminders?
+- I tapped Not Now — will it ask me again?
+- I tapped Don’t Ask Again — can I still review later?
+- The review prompt did not open the app store
+
+Each troubleshooting topic should include:
+
+- What probably happened
+- How to fix it now
+- How to avoid it next time
+
+Tutorials should remain beginner-friendly and should use guided walkthroughs where appropriate.
+
+11. Validation After Update
+
+After making this change, verify:
+
+- appOpenCount increments on app launch
+- Review prompt appears after the 5th app open
+- Review prompt does not appear during live gameplay
+- Review prompt waits until a safe screen if the user is in a game
+- Not Now increments decline count
+- Not Now delays the next prompt for 5 more app opens
+- After the third decline, Don’t Ask Again appears
+- Don’t Ask Again permanently disables automatic prompts
+- Settings still allows manual Rate Batter Up
+- Native review prompt is attempted safely
+- App does not crash if store review is unavailable
+- App does not crash if store URLs are not configured yet
+- Review prompt works in Light Mode and Dark Mode
+- Review prompt respects Text Size settings
+- Help Center includes review prompt guidance
+- Troubleshooting includes review prompt questions

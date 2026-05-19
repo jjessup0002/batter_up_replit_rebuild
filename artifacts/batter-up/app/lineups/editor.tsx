@@ -31,7 +31,7 @@ export default function LineupEditorScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { lineupId } = useLocalSearchParams<{ lineupId?: string }>();
+  const { lineupId, returnTo } = useLocalSearchParams<{ lineupId?: string; returnTo?: string }>();
   const { settings } = useApp();
   const isEditing = !!lineupId;
 
@@ -122,6 +122,13 @@ export default function LineupEditorScreen() {
     };
     await saveLineup(lineup);
     setSaving(false);
+    // If this editor was opened as part of the Start Game flow (returnTo=setup),
+    // continue straight to Game Setup with the newly-saved lineup instead of
+    // dropping back to Home.
+    if (returnTo === 'setup') {
+      router.replace({ pathname: '/game/setup', params: { lineupId: lineup.id } });
+      return;
+    }
     if (router.canGoBack()) {
       router.back();
     } else {
