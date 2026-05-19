@@ -81,6 +81,15 @@ export interface InningScore {
   bottomRuns: number;
 }
 
+export interface PlayerStatOverride {
+  atBats?: number;
+  hits?: number;
+  runs?: number;
+  rbis?: number;
+  walks?: number;
+  strikeouts?: number;
+}
+
 export interface GameState {
   id: string;
   setup: GameSetup;
@@ -98,6 +107,12 @@ export interface GameState {
   events: GameEvent[];
   isComplete: boolean;
   completedAt?: string;
+  // Manual corrections applied after the fact via the Edit Game Stats screen.
+  // When present for a player id, the override REPLACES the event-derived stats
+  // for this game (see statsCalculator). `manuallyCorrected` is shown as a
+  // badge on the Game Summary so coaches know the numbers were edited.
+  statOverrides?: Record<string, PlayerStatOverride>;
+  manuallyCorrected?: boolean;
 }
 
 export interface PlayerStats {

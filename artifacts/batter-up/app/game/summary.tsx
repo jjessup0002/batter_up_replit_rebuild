@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Linking, Modal, Platform, ScrollView, Share, StyleSheet, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/ui/Card';
@@ -66,25 +66,36 @@ export default function GameSummaryScreen() {
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
-  useEffect(() => {
-    getGames().then(async (games) => {
-      const g = games.find((g) => g.id === gameId) ?? games[games.length - 1];
-      if (!g) return;
-      setGame(g);
-      const players = g.setup.lineupSnapshot;
-      const stats = players.map((p) => calculatePlayerStats(p.id, p.name, [g]));
-      setPlayerStats(stats);
+  // Reload on every focus so edits made on /game/edit-stats show up
+  // immediately when the coach returns to the summary screen.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      getGames().then(async (games) => {
+        if (cancelled) return;
+        const g = games.find((g) => g.id === gameId) ?? games[games.length - 1];
+        if (!g) return;
+        setGame(g);
+        const players = g.setup.lineupSnapshot;
+        const stats = players.map((p) => calculatePlayerStats(p.id, p.name, [g]));
+        setPlayerStats(stats);
 
-      // Check if we should show the review prompt (only for real games)
-      if (!g.setup.isDemoMode) {
-        const s = await getSettings();
-        if (shouldShowReviewPrompt(s)) {
-          // Small delay so it doesn't appear immediately
-          setTimeout(() => setShowReview(true), 2000);
+        // Only consider the review prompt on first load, not on subsequent
+        // focuses — checked via a ref-like flag tracked in state.
+        if (!g.setup.isDemoMode) {
+          const s = await getSettings();
+          if (shouldShowReviewPrompt(s)) {
+            setTimeout(() => {
+              if (!cancelled) setShowReview(true);
+            }, 2000);
+          }
         }
-      }
-    });
-  }, [gameId]);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }, [gameId])
+  );
 
   const handleLeaveReview = async () => {
     setShowReview(false);
@@ -255,8 +266,27 @@ export default function GameSummaryScreen() {
           </Card>
         )}
 
+        {game.manuallyCorrected && (
+          <View style={[styles.correctedBadge, { backgroundColor: colors.secondary, borderColor: colors.primary }]}>
+            <Feather name="edit-3" size={14} color={colors.primary} />
+            <ThemedText variant="caption" color={colors.primary} style={{ fontWeight: '600' }}>
+              Stats were manually corrected after this game ended.
+            </ThemedText>
+          </View>
+        )}
+
         <View style={styles.buttons}>
           <Button title="Back to Home" size="lg" fullWidth onPress={() => router.replace('/home')} />
+          {!game.setup.isDemoMode && (
+            <Button
+              title="Edit Game Stats"
+              variant="outline"
+              size="lg"
+              fullWidth
+              onPress={() => router.push({ pathname: '/game/edit-stats', params: { gameId: game.id } })}
+              style={{ marginTop: 10 }}
+            />
+          )}
           <Button title="Share Summary" variant="outline" size="lg" fullWidth onPress={() => Share.share({ message: shareText }).catch(() => {})} style={{ marginTop: 10 }} />
         </View>
       </ScrollView>
@@ -276,6 +306,15 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingBottom: 12, borderBottomWidth: StyleSheet.hairlineWidth },
   backBtn: { padding: 4, marginRight: 8 },
   content: { padding: 16, gap: 14 },
+  correctedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
   scoreCard: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: 20 },
   resultBadge: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 6, marginBottom: 12 },
   finalScore: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 20, marginTop: 8 },

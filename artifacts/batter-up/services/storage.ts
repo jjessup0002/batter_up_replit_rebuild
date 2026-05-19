@@ -66,6 +66,14 @@ export async function getGames(): Promise<GameState[]> {
   } catch { return []; }
 }
 
+export async function updateGame(updated: GameState): Promise<void> {
+  const games = await getGames();
+  const idx = games.findIndex((g) => g.id === updated.id);
+  if (idx === -1) return;
+  games[idx] = updated;
+  await AsyncStorage.setItem(KEYS.GAMES, JSON.stringify(games));
+}
+
 export async function saveCompletedGame(game: GameState): Promise<void> {
   const games = await getGames();
   const idx = games.findIndex((g) => g.id === game.id);

@@ -31,6 +31,35 @@ export function calculatePlayerStats(
   };
 
   for (const game of games) {
+    // If this game has a manual override for this player, the override REPLACES
+    // the event-derived stats entirely for this game's contribution. This lets
+    // coaches correct historical games via the Edit Game Stats screen without
+    // having to fabricate synthetic events.
+    const override = game.statOverrides?.[playerId];
+    if (override) {
+      const ab = override.atBats ?? 0;
+      const h = override.hits ?? 0;
+      const w = override.walks ?? 0;
+      // Count the game as played if the override or events suggest participation.
+      const hadEvents = game.events.some((e) => e.playerId === playerId);
+      if (ab > 0 || w > 0 || (override.runs ?? 0) > 0 || (override.rbis ?? 0) > 0 || (override.strikeouts ?? 0) > 0 || hadEvents) {
+        stats.gamesPlayed++;
+      }
+      stats.atBats += ab;
+      stats.hits += h;
+      stats.runs += override.runs ?? 0;
+      stats.rbis += override.rbis ?? 0;
+      stats.walks += w;
+      stats.strikeouts += override.strikeouts ?? 0;
+      stats.plateAppearances += ab + w;
+      // Edit Stats only captures hit counts (not the breakdown), so treat all
+      // overridden hits as singles for total-bases purposes. Coaches who want
+      // precise SLG should leave the events untouched.
+      stats.singles += h;
+      stats.totalBases += h;
+      continue;
+    }
+
     const playerEvents = game.events.filter((e) => e.playerId === playerId);
     if (playerEvents.length === 0) continue;
     stats.gamesPlayed++;

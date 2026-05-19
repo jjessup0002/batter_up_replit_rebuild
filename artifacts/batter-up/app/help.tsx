@@ -2,6 +2,7 @@ import { Feather } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState, useMemo } from 'react';
 import {
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -10,16 +11,20 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useColors } from '@/hooks/useColors';
 
 // ─── Help content data ────────────────────────────────────────────────────────
 
+type HelpStep = { title: string; body: string };
+
 type HelpItem = {
   title: string;
   body: string;
   tags: string[];
+  steps?: HelpStep[];
 };
 
 type HelpSection = {
@@ -108,8 +113,16 @@ const HELP_DATA: HelpSection[] = [
       },
       {
         title: 'Getting Started: Creating and editing a lineup',
-        body: 'Tap "Lineups" from the Home screen. Tap "New Lineup" and give it a name. Add players using the "Add Player" button. For each player, enter their name and optionally a jersey number and position.\n\nTo reorder: drag the handle on the right side of each player row.\n\nTo edit an existing lineup: tap the lineup on the Lineups screen, then tap "Edit."',
+        body: 'Tap Lineups, then New Lineup. Add players, drag to reorder, and save. Edit an existing lineup by tapping it on the Lineups screen.',
         tags: ['lineup', 'create', 'edit', 'players', 'reorder'],
+        steps: [
+          { title: 'Open the Lineups screen', body: 'From the Home screen, tap the Lineups button. You will see all of your saved lineups here.' },
+          { title: 'Start a new lineup', body: 'Tap "New Lineup" at the top right. Give it a clear name like "Tigers — Spring 2026" so you can find it later.' },
+          { title: 'Add your first player', body: 'Tap "Add Player." Enter the player\'s name. Jersey number and position are optional but useful for the in-game display.' },
+          { title: 'Add the rest of your roster', body: 'Repeat for each player. They appear in the order you add them — that is the batting order.' },
+          { title: 'Reorder if needed', body: 'Long-press the drag handle on the right side of any player row, then drag them up or down to change the batting order.' },
+          { title: 'Save and you are done', body: 'Tap Save at the top. Your lineup is stored on your device and ready to use for any future game.' },
+        ],
       },
       {
         title: 'Getting Started: Marking a player inactive',
@@ -133,8 +146,16 @@ const HELP_DATA: HelpSection[] = [
       },
       {
         title: 'Game Setup: Choosing T-Ball, Coach Pitch, or Kid Pitch',
-        body: 'On Game Setup, tap a preset to automatically fill in the rules for that game type:\n\n• T-Ball: No pitching, simplified rules\n• Coach Pitch: Limited pitches per batter, no walks\n• Kid Pitch: Full rules — balls, strikes, walks, strikeouts\n• Custom: Set your own rules\n\nYou can customize defaults for each type in Settings under Game Type Presets.',
+        body: 'Pick a game-type preset on Game Setup to auto-fill rules for that age group. You can fine-tune any value before starting.',
         tags: ['tball', 'coach pitch', 'kid pitch', 'preset', 'game type'],
+        steps: [
+          { title: 'Open Game Setup', body: 'After picking a lineup, you land on the Game Setup screen. Preset buttons appear near the top.' },
+          { title: 'T-Ball', body: 'For the youngest age groups. No pitching, no walks or strikeouts. Just hit, run, and track outs and runs.' },
+          { title: 'Coach Pitch', body: 'Good for ages roughly 7–8. Limits pitches per batter and skips walks and strikeouts.' },
+          { title: 'Kid Pitch', body: 'Standard for ages 9 and up. Full tracking turned on — balls, strikes, walks, and strikeouts.' },
+          { title: 'Custom', body: 'Tap Custom to start from scratch and set your own innings, outs, run limits, and tracking rules.' },
+          { title: 'Tweak before starting', body: 'All preset values are still editable below. Adjust innings, outs per half-inning, or run limits to match your league.' },
+        ],
       },
       {
         title: 'Game Setup: Choosing Light Mode or Dark Mode',
@@ -148,23 +169,49 @@ const HELP_DATA: HelpSection[] = [
       },
       {
         title: 'During the Game: Using Next Batter and Previous Batter',
-        body: 'Tap "Next" to move forward to the next active batter.\n\nIf you need to go back (for example, you advanced too early), tap "Prev" or use Undo to reverse the action.',
+        body: 'Tap Next to advance the batting order. Tap Prev or Undo to step back. The lineup view auto-scrolls so the current batter is always visible.',
         tags: ['next batter', 'previous batter', 'advance'],
+        steps: [
+          { title: 'Find the action bar', body: 'On the Live Game screen, the main action buttons sit at the bottom — this is where Next and Prev live.' },
+          { title: 'Tap Next to advance', body: 'Tap "Next" to move to the next active batter. The NOW BATTING display updates instantly.' },
+          { title: 'Watch the lineup scroll', body: 'The lineup auto-scrolls so the current batter is always centered, with the on-deck batter right below.' },
+          { title: 'Go back if needed', body: 'If you advanced too soon, tap "Prev" to step backward. Inactive players are automatically skipped both ways.' },
+          { title: 'Undo for a full reverse', body: 'If a Ball, Strike, or hit was recorded, use Undo instead — it reverses the event and any side effects like score changes.' },
+        ],
       },
       {
         title: 'During the Game: Ending a half-inning',
-        body: 'In Basic Mode: tap "End Inning" when the half-inning is done. The score and outs will reset for the next half-inning.\n\nIn Advanced Mode: the half-inning can end automatically when the outs or run limit is reached. You can also end it manually by tapping "End Half-Inning."',
+        body: 'Basic Mode: tap End Inning. Advanced Mode: half-innings end automatically when outs or run-limits are reached, or tap End Half-Inning to end early.',
         tags: ['inning', 'end inning', 'half inning', 'outs'],
+        steps: [
+          { title: 'In Basic Mode', body: 'When the half-inning is over, tap "End Inning" on the Live Game screen. Outs reset and the next half-inning begins.' },
+          { title: 'In Advanced Mode', body: 'Half-innings end automatically once the configured outs or run limit is reached. You do not need to tap anything.' },
+          { title: 'Switching sides', body: 'After a half-inning ends, the batting team flips. Home team becomes the fielding team, and vice versa.' },
+          { title: 'Ending early', body: 'In Advanced Mode you can also tap "End Half-Inning" to end it before the outs cap — useful for mercy-rule or weather situations.' },
+        ],
       },
       {
         title: 'During the Game: Using Undo',
-        body: 'Tap Undo on the Live Game screen to reverse the last recorded action. Batter Up keeps track of recent events so you can undo multiple mistakes in a row.\n\nUndo works for: next batter, score changes, balls, strikes, outs, and most other game events.',
+        body: 'Undo reverses the last recorded action. Tap it multiple times to go further back. Works for balls, strikes, score changes, batter advances, and more.',
         tags: ['undo', 'mistake', 'fix'],
+        steps: [
+          { title: 'Find Undo', body: 'The Undo button is in the bottom action bar on the Live Game screen, next to Next and Prev.' },
+          { title: 'Tap once to reverse', body: 'Each tap reverses the most recent event — a ball, strike, run, hit, batter change, or anything else recorded.' },
+          { title: 'Keep tapping for more', body: 'Need to go back further? Tap Undo again. The full event history is preserved for the whole game.' },
+          { title: 'You can not break it', body: 'Undo works in both Basic and Advanced Mode. There is no penalty for mistakes — every recorded action can be reversed safely.' },
+        ],
       },
       {
         title: 'Advanced Tracking: Balls and strikes',
-        body: 'In Advanced Mode, use the "Ball" and "Strike" buttons to track the count for the current batter. The count is shown as dots in the header (filled = used).\n\nA walk is recorded automatically when the configured balls-for-walk count is reached. A strikeout is recorded when the strikes limit is hit.',
+        body: 'In Advanced Mode, tap Ball or Strike to update the count. Walks and strikeouts are recorded automatically when the configured limits are reached.',
         tags: ['balls', 'strikes', 'count', 'advanced'],
+        steps: [
+          { title: 'Switch to Advanced Mode', body: 'Balls and strikes only appear in Advanced Mode. Switch from Settings, or from the Game Menu during a live game.' },
+          { title: 'Tap Ball', body: 'Tap "Ball" to add a ball to the current batter\'s count. The header shows filled dots for the running count.' },
+          { title: 'Tap Strike', body: 'Tap "Strike" for a strike. The count display updates instantly.' },
+          { title: 'Walks happen automatically', body: 'When the configured ball count is reached (usually 4), a walk is recorded and the batter advances on its own.' },
+          { title: 'Strikeouts too', body: 'Hit the strike limit (usually 3) and a strikeout is recorded automatically — no extra tap needed.' },
+        ],
       },
       {
         title: 'Advanced Tracking: Pitch count',
@@ -173,8 +220,15 @@ const HELP_DATA: HelpSection[] = [
       },
       {
         title: 'Advanced Tracking: Recording hits, outs, and walks',
-        body: 'In Advanced Mode, you can record the result of each at-bat:\n\n• Hit: single, double, triple, or home run\n• Out: records the out and advances the batter\n• Walk (BB): advances the batter to first\n• Strikeout (K): records the out\n• Hit by pitch (HBP): same as a walk\n\nTap the result button and the batter will advance automatically.',
+        body: 'Tap the result button at the end of each at-bat: single, double, triple, home run, out, strikeout, walk, or HBP. The batter advances automatically.',
         tags: ['hits', 'outs', 'walks', 'strikeout', 'advanced'],
+        steps: [
+          { title: 'At the plate', body: 'When the batter finishes their at-bat, tap the result button that matches what happened.' },
+          { title: 'Hits', body: 'Tap Single, Double, Triple, or Home Run. Each is recorded as a hit and feeds the batting average and slugging stats.' },
+          { title: 'Outs', body: 'Tap "Out" for any standard out. Use "Strikeout" specifically for a K — it tracks separately in player stats.' },
+          { title: 'Walks and HBP', body: 'Tap "Walk" (BB) or "HBP" (hit by pitch). These advance the batter to first without using an at-bat.' },
+          { title: 'Auto-advance', body: 'After any action, the next active batter steps up automatically. No need to also tap Next.' },
+        ],
       },
       {
         title: 'Advanced Tracking: What is an RBI?',
@@ -183,8 +237,15 @@ const HELP_DATA: HelpSection[] = [
       },
       {
         title: 'Stats: Viewing the game summary',
-        body: 'The game summary appears automatically when a game ends. It shows:\n\n• Final score and inning-by-inning breakdown\n• Top performers (hits, RBIs)\n• Full player stats table\n\nYou can also find past summaries on the Stats screen. Tap any game in your history.',
+        body: 'The summary appears when a game ends. Shows final score, inning-by-inning, top performers, and full player stats. Past summaries live in Stats > Game History.',
         tags: ['summary', 'game summary', 'stats', 'history'],
+        steps: [
+          { title: 'After the game', body: 'When the game ends — either automatically or by tapping End Game — you are taken straight to the Game Summary.' },
+          { title: 'Final score and innings', body: 'The top shows the final score and a line-by-line inning breakdown for both teams.' },
+          { title: 'Top performers', body: 'Below the score, see which players led the team in hits, runs, and RBIs.' },
+          { title: 'Full stats table', body: 'Scroll down for every player\'s at-bats, hits, walks, strikeouts, and batting average.' },
+          { title: 'Find it later', body: 'Past summaries are saved in Stats > Game History. Tap any game to revisit its full summary.' },
+        ],
       },
       {
         title: 'Stats: What is batting average?',
@@ -325,6 +386,7 @@ export default function HelpScreen() {
   const [query, setQuery] = useState('');
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['quickstart']));
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [walkthroughItem, setWalkthroughItem] = useState<HelpItem | null>(null);
 
   const searchResults = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -363,22 +425,33 @@ export default function HelpScreen() {
   };
 
   const HelpItemRow = ({ item, itemKey }: { item: HelpItem; itemKey: string }) => {
+    const hasWalkthrough = !!item.steps && item.steps.length > 0;
     const isOpen = expandedItems.has(itemKey);
     return (
       <View style={[styles.topicRow, { borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={styles.topicHeader}
-          onPress={() => toggleItem(itemKey)}
+          onPress={() => (hasWalkthrough ? setWalkthroughItem(item) : toggleItem(itemKey))}
           activeOpacity={0.7}
         >
-          <ThemedText variant="body" style={{ flex: 1, fontWeight: '500' }}>{item.title}</ThemedText>
+          <View style={{ flex: 1 }}>
+            <ThemedText variant="body" style={{ fontWeight: '500' }}>{item.title}</ThemedText>
+            {hasWalkthrough && (
+              <View style={styles.walkthroughHint}>
+                <Feather name="play-circle" size={12} color={colors.primary} />
+                <ThemedText variant="caption" color={colors.primary} style={{ fontWeight: '600' }}>
+                  {item.steps!.length}-step walkthrough
+                </ThemedText>
+              </View>
+            )}
+          </View>
           <Feather
-            name={isOpen ? 'chevron-up' : 'chevron-down'}
+            name={hasWalkthrough ? 'chevron-right' : isOpen ? 'chevron-up' : 'chevron-down'}
             size={16}
             color={colors.mutedForeground}
           />
         </TouchableOpacity>
-        {isOpen && (
+        {!hasWalkthrough && isOpen && (
           <View style={[styles.topicBody, { backgroundColor: colors.muted }]}>
             <ThemedText variant="body" style={{ lineHeight: 22 }}>{item.body}</ThemedText>
           </View>
@@ -541,7 +614,119 @@ export default function HelpScreen() {
           </ThemedText>
         )}
       </ScrollView>
+
+      <WalkthroughModal
+        item={walkthroughItem}
+        onClose={() => setWalkthroughItem(null)}
+      />
     </View>
+  );
+}
+
+// ─── Walkthrough modal ────────────────────────────────────────────────────────
+
+function WalkthroughModal({
+  item,
+  onClose,
+}: {
+  item: HelpItem | null;
+  onClose: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const [stepIdx, setStepIdx] = useState(0);
+
+  // Reset to first step whenever a new walkthrough opens.
+  React.useEffect(() => {
+    if (item) setStepIdx(0);
+  }, [item]);
+
+  if (!item || !item.steps) return null;
+  const steps = item.steps;
+  const step = steps[stepIdx];
+  const isFirst = stepIdx === 0;
+  const isLast = stepIdx === steps.length - 1;
+  const topPad = Platform.OS === 'web' ? 24 : insets.top + 8;
+  const botPad = Platform.OS === 'web' ? 24 : insets.bottom + 16;
+
+  return (
+    <Modal visible={!!item} animationType="slide" onRequestClose={onClose} transparent={false}>
+      <View style={[styles.wtContainer, { backgroundColor: colors.background, paddingTop: topPad, paddingBottom: botPad }]}>
+        {/* Header */}
+        <View style={styles.wtHeader}>
+          <TouchableOpacity onPress={onClose} style={styles.wtClose} hitSlop={10}>
+            <Feather name="x" size={24} color={colors.foreground} />
+          </TouchableOpacity>
+          <ThemedText variant="caption" color={colors.mutedForeground} style={{ fontWeight: '600', letterSpacing: 0.5 }}>
+            STEP {stepIdx + 1} OF {steps.length}
+          </ThemedText>
+          <View style={{ width: 32 }} />
+        </View>
+
+        {/* Progress dots */}
+        <View style={styles.wtDots}>
+          {steps.map((_, i) => (
+            <View
+              key={i}
+              style={[
+                styles.wtDot,
+                {
+                  backgroundColor: i <= stepIdx ? colors.primary : colors.border,
+                  width: i === stepIdx ? 24 : 8,
+                },
+              ]}
+            />
+          ))}
+        </View>
+
+        {/* Title of the topic (subtle) */}
+        <ThemedText
+          variant="caption"
+          align="center"
+          color={colors.mutedForeground}
+          style={{ marginTop: 12, paddingHorizontal: 24 }}
+        >
+          {item.title}
+        </ThemedText>
+
+        {/* Step content */}
+        <ScrollView
+          contentContainerStyle={styles.wtBody}
+          showsVerticalScrollIndicator={false}
+        >
+          <ThemedText variant="h2" align="center" style={{ marginBottom: 16 }}>
+            {step.title}
+          </ThemedText>
+          <ThemedText variant="body" align="center" style={{ lineHeight: 24 }}>
+            {step.body}
+          </ThemedText>
+        </ScrollView>
+
+        {/* Footer actions */}
+        <View style={styles.wtFooter}>
+          {!isFirst && (
+            <Button
+              title="Back"
+              variant="outline"
+              size="lg"
+              onPress={() => setStepIdx((i) => Math.max(0, i - 1))}
+              style={{ flex: 1 }}
+            />
+          )}
+          {isLast ? (
+            <Button title="Done" variant="primary" size="lg" onPress={onClose} style={{ flex: 1 }} />
+          ) : (
+            <Button
+              title="Next"
+              variant="primary"
+              size="lg"
+              onPress={() => setStepIdx((i) => Math.min(steps.length - 1, i + 1))}
+              style={{ flex: 1 }}
+            />
+          )}
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -587,6 +772,43 @@ const styles = StyleSheet.create({
     marginLeft: 2,
   },
   section: { gap: 0 },
+  walkthroughHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  wtContainer: { flex: 1 },
+  wtHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  wtClose: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  wtDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+  },
+  wtDot: {
+    height: 8,
+    borderRadius: 4,
+  },
+  wtBody: {
+    flexGrow: 1,
+    paddingHorizontal: 32,
+    paddingVertical: 32,
+    justifyContent: 'center',
+  },
+  wtFooter: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 12,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',

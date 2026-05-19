@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useGame } from '@/context/GameContext';
 import { EventType, GameRules, Player } from '@/models/types';
-import { clearActiveGame, incrementGameSessions, saveCompletedGame, shouldShowReviewPrompt, getSettings } from '@/services/storage';
+import { clearActiveGame, generateId, incrementGameSessions, saveCompletedGame, shouldShowReviewPrompt, getSettings } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
 // ─── Count Dots ───────────────────────────────────────────────────────────────
@@ -299,7 +299,7 @@ const gsStyles = StyleSheet.create({
 // ─── Game Menu Modal ───────────────────────────────────────────────────────────
 
 function GameMenuModal({
-  visible, currentMode, onSwitchMode, onReturnHome, onRainDelay, onOpenSettings, onEndGame, onClose,
+  visible, currentMode, onSwitchMode, onReturnHome, onRainDelay, onOpenSettings, onEditLineup, onEndGame, onClose,
 }: {
   visible: boolean;
   currentMode: 'basic' | 'advanced';
@@ -307,6 +307,7 @@ function GameMenuModal({
   onReturnHome: () => void;
   onRainDelay: () => void;
   onOpenSettings: () => void;
+  onEditLineup: () => void;
   onEndGame: () => void;
   onClose: () => void;
 }) {
@@ -317,6 +318,7 @@ function GameMenuModal({
 
   const items: { icon: string; label: string; sub?: string; onPress: () => void; destructive?: boolean }[] = [
     { icon: 'home', label: 'Return to Home', sub: 'Game stays in progress', onPress: onReturnHome },
+    { icon: 'users', label: 'Edit Lineup', sub: 'Add, reorder, or sub out players', onPress: onEditLineup },
     { icon: 'refresh-cw', label: switchToLabel, sub: 'Keeps score, lineup, and stats', onPress: onSwitchMode },
     { icon: 'cloud-rain', label: 'Pause for Rain Delay', sub: 'Save and step away', onPress: onRainDelay },
     { icon: 'sliders', label: 'Game Settings', sub: 'Opponent name and rules', onPress: onOpenSettings },
@@ -369,6 +371,336 @@ const gmStyles = StyleSheet.create({
   iconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });
 
+// ─── Edit Lineup Modal ────────────────────────────────────────────────────────
+//
+// In-game lineup editor. Lets coaches add a new player at the bottom of the
+// order, rename or change jersey/position, toggle active status (which skips
+// the player in the batting rotation), and reorder via up/down arrows.
+//
+// Players are never deleted — only marked inactive — because past events
+// reference them by id and removing would orphan recorded stats.
+//
+// Changes are staged in a local draft and committed via onSave so a coach can
+// abandon their edits without disrupting the live game.
+
+function EditLineupModal({
+  visible, lineup, currentBatterId, onClose, onSave,
+}: {
+  visible: boolean;
+  lineup: Player[];
+  currentBatterId?: string;
+  onClose: () => void;
+  onSave: (next: Player[]) => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const topPad = Platform.OS === 'web' ? 24 : insets.top + 8;
+  const botPad = Platform.OS === 'web' ? 24 : insets.bottom + 12;
+
+  const [draft, setDraft] = useState<Player[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newJersey, setNewJersey] = useState('');
+  const [newPosition, setNewPosition] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setDraft(lineup.map((p) => ({ ...p })));
+      setEditingId(null);
+      setShowAddForm(false);
+      setNewName('');
+      setNewJersey('');
+      setNewPosition('');
+    }
+  }, [visible, lineup]);
+
+  const move = (idx: number, dir: -1 | 1) => {
+    const j = idx + dir;
+    if (j < 0 || j >= draft.length) return;
+    const arr = [...draft];
+    [arr[idx], arr[j]] = [arr[j], arr[idx]];
+    setDraft(arr.map((p, i) => ({ ...p, battingOrder: i + 1 })));
+  };
+
+  const toggleActive = (id: string) => {
+    setDraft(draft.map((p) => (p.id === id ? { ...p, isActive: !p.isActive } : p)));
+  };
+
+  const updateField = (id: string, field: 'name' | 'jerseyNumber' | 'primaryPosition', value: string) => {
+    setDraft(draft.map((p) => (p.id === id ? { ...p, [field]: value } : p)));
+  };
+
+  const addPlayer = () => {
+    const name = newName.trim();
+    if (!name) return;
+    setDraft([
+      ...draft,
+      {
+        id: generateId(),
+        name,
+        jerseyNumber: newJersey.trim(),
+        primaryPosition: newPosition.trim(),
+        isActive: true,
+        battingOrder: draft.length + 1,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+    setNewName('');
+    setNewJersey('');
+    setNewPosition('');
+    setShowAddForm(false);
+  };
+
+  const activeCount = draft.filter((p) => p.isActive).length;
+  const canSave = activeCount > 0;
+
+  return (
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={[elStyles.container, { backgroundColor: colors.background, paddingTop: topPad }]}>
+        {/* Header */}
+        <View style={[elStyles.header, { borderBottomColor: colors.border }]}>
+          <TouchableOpacity onPress={onClose} style={elStyles.headerBtn} hitSlop={8}>
+            <ThemedText variant="body" color={colors.primary} style={{ fontWeight: '600' }}>Cancel</ThemedText>
+          </TouchableOpacity>
+          <ThemedText variant="h3">Edit Lineup</ThemedText>
+          <TouchableOpacity
+            onPress={() => canSave && onSave(draft)}
+            disabled={!canSave}
+            style={elStyles.headerBtn}
+            hitSlop={8}
+          >
+            <ThemedText
+              variant="body"
+              color={canSave ? colors.primary : colors.mutedForeground}
+              style={{ fontWeight: '700', opacity: canSave ? 1 : 0.5 }}
+            >
+              Save
+            </ThemedText>
+          </TouchableOpacity>
+        </View>
+
+        <View style={[elStyles.statusBar, { backgroundColor: canSave ? colors.muted : colors.destructive + '20', borderBottomColor: colors.border }]}>
+          <ThemedText variant="caption" color={canSave ? colors.mutedForeground : colors.destructive}>
+            {canSave
+              ? `${activeCount} active of ${draft.length} • Changes take effect immediately when you save`
+              : `At least one player must be active to save.`}
+          </ThemedText>
+        </View>
+
+        <ScrollView contentContainerStyle={{ paddingBottom: botPad + 12 }} keyboardShouldPersistTaps="handled">
+          {draft.map((p, idx) => {
+            const isEditing = editingId === p.id;
+            return (
+              <View
+                key={p.id}
+                style={[
+                  elStyles.row,
+                  {
+                    backgroundColor: p.isActive ? colors.card : colors.muted,
+                    borderBottomColor: colors.border,
+                    opacity: p.isActive ? 1 : 0.65,
+                  },
+                ]}
+              >
+                <ThemedText variant="caption" style={{ width: 22, color: colors.mutedForeground, fontWeight: '700' }}>
+                  {idx + 1}
+                </ThemedText>
+
+                {/* Reorder arrows */}
+                <View style={elStyles.arrows}>
+                  <TouchableOpacity
+                    onPress={() => move(idx, -1)}
+                    disabled={idx === 0}
+                    style={[elStyles.arrowBtn, { opacity: idx === 0 ? 0.3 : 1 }]}
+                    hitSlop={6}
+                  >
+                    <Feather name="chevron-up" size={18} color={colors.foreground} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => move(idx, 1)}
+                    disabled={idx === draft.length - 1}
+                    style={[elStyles.arrowBtn, { opacity: idx === draft.length - 1 ? 0.3 : 1 }]}
+                    hitSlop={6}
+                  >
+                    <Feather name="chevron-down" size={18} color={colors.foreground} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Player info / edit fields */}
+                {isEditing ? (
+                  <View style={{ flex: 1, gap: 6 }}>
+                    <TextInput
+                      value={p.name}
+                      onChangeText={(v) => updateField(p.id, 'name', v)}
+                      placeholder="Name"
+                      placeholderTextColor={colors.mutedForeground}
+                      style={[elStyles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+                    />
+                    <View style={{ flexDirection: 'row', gap: 6 }}>
+                      <TextInput
+                        value={p.jerseyNumber}
+                        onChangeText={(v) => updateField(p.id, 'jerseyNumber', v)}
+                        placeholder="#"
+                        placeholderTextColor={colors.mutedForeground}
+                        keyboardType="number-pad"
+                        style={[elStyles.input, { flex: 1, color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+                      />
+                      <TextInput
+                        value={p.primaryPosition}
+                        onChangeText={(v) => updateField(p.id, 'primaryPosition', v)}
+                        placeholder="Pos"
+                        placeholderTextColor={colors.mutedForeground}
+                        autoCapitalize="characters"
+                        style={[elStyles.input, { flex: 1, color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+                      />
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={{ flex: 1 }} onPress={() => setEditingId(p.id)}>
+                    <ThemedText variant="body" style={{ fontWeight: '600' }}>
+                      {p.name || '(Unnamed)'}
+                    </ThemedText>
+                    <ThemedText variant="caption" color={colors.mutedForeground}>
+                      {p.jerseyNumber ? `#${p.jerseyNumber}` : ''}
+                      {p.jerseyNumber && p.primaryPosition ? ' • ' : ''}
+                      {p.primaryPosition}
+                      {!p.isActive ? ' • Inactive' : ''}
+                    </ThemedText>
+                  </TouchableOpacity>
+                )}
+
+                {/* Right-side actions */}
+                <View style={elStyles.rightActions}>
+                  <TouchableOpacity
+                    onPress={() => setEditingId(isEditing ? null : p.id)}
+                    style={elStyles.iconBtn}
+                    hitSlop={6}
+                  >
+                    <Feather name={isEditing ? 'check' : 'edit-2'} size={16} color={colors.primary} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => toggleActive(p.id)}
+                    style={elStyles.iconBtn}
+                    hitSlop={6}
+                  >
+                    <Feather
+                      name={p.isActive ? 'user-check' : 'user-x'}
+                      size={18}
+                      color={p.isActive ? colors.success : colors.destructive}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            );
+          })}
+
+          {/* Add player section */}
+          {showAddForm ? (
+            <View style={[elStyles.addForm, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <ThemedText variant="label" style={{ marginBottom: 8, fontWeight: '700' }}>Add Player</ThemedText>
+              <TextInput
+                value={newName}
+                onChangeText={setNewName}
+                placeholder="Player name"
+                placeholderTextColor={colors.mutedForeground}
+                style={[elStyles.input, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background, marginBottom: 8 }]}
+                autoFocus
+              />
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                <TextInput
+                  value={newJersey}
+                  onChangeText={setNewJersey}
+                  placeholder="Jersey #"
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="number-pad"
+                  style={[elStyles.input, { flex: 1, color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+                />
+                <TextInput
+                  value={newPosition}
+                  onChangeText={setNewPosition}
+                  placeholder="Position"
+                  placeholderTextColor={colors.mutedForeground}
+                  autoCapitalize="characters"
+                  style={[elStyles.input, { flex: 1, color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+                />
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Button title="Cancel" variant="outline" size="md" onPress={() => setShowAddForm(false)} style={{ flex: 1 }} />
+                <Button title="Add" variant="primary" size="md" onPress={addPlayer} style={{ flex: 1 }} />
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              style={[elStyles.addBtn, { borderColor: colors.primary, backgroundColor: colors.secondary }]}
+              onPress={() => setShowAddForm(true)}
+            >
+              <Feather name="plus" size={18} color={colors.primary} />
+              <ThemedText variant="body" color={colors.primary} style={{ fontWeight: '700' }}>
+                Add Player to Bottom of Order
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </View>
+    </Modal>
+  );
+}
+
+const elStyles = StyleSheet.create({
+  container: { flex: 1 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  headerBtn: { padding: 4, minWidth: 60 },
+  statusBar: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    gap: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  arrows: { gap: 2 },
+  arrowBtn: { padding: 2 },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    fontSize: 15,
+  },
+  rightActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  iconBtn: { padding: 8, borderRadius: 8 },
+  addForm: {
+    margin: 16,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  addBtn: {
+    margin: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+  },
+});
+
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function LiveGameScreen() {
@@ -388,6 +720,7 @@ export default function LiveGameScreen() {
   const [showGameSettings, setShowGameSettings] = useState(false);
   const [showGameMenu, setShowGameMenu] = useState(false);
   const [showModeSwitchConfirm, setShowModeSwitchConfirm] = useState(false);
+  const [showEditLineup, setShowEditLineup] = useState(false);
   const [saving, setSaving] = useState(false);
   const listRef = useRef<FlatList>(null);
 
@@ -406,7 +739,8 @@ export default function LiveGameScreen() {
   // Scroll to current batter
   useEffect(() => {
     if (!game) return;
-    const activePlayers = game.setup.lineupSnapshot;
+    const activePlayers = game.setup.lineupSnapshot.filter((p) => p.isActive);
+    if (activePlayers.length === 0) return;
     const idx = game.currentBatterIndex % activePlayers.length;
     setTimeout(() => {
       listRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.3 });
@@ -501,15 +835,22 @@ export default function LiveGameScreen() {
   }
 
   const rules = game.setup.rules;
-  const activePlayers = game.setup.lineupSnapshot;
-  const currentBatter = activePlayers[game.currentBatterIndex % activePlayers.length];
-  const onDeckIndex = (game.currentBatterIndex + 1) % activePlayers.length;
-  const onDeckBatter = activePlayers[onDeckIndex];
+  // Only active players are part of the batting rotation — must match
+  // getActivePlayers() in GameContext so displayed batter ID equals the
+  // player ID we record events against.
+  const activePlayers = game.setup.lineupSnapshot.filter((p) => p.isActive);
+  const currentBatter = activePlayers.length > 0
+    ? activePlayers[game.currentBatterIndex % activePlayers.length]
+    : undefined;
+  const onDeckIndex = activePlayers.length > 0
+    ? (game.currentBatterIndex + 1) % activePlayers.length
+    : 0;
+  const onDeckBatter = activePlayers.length > 0 ? activePlayers[onDeckIndex] : undefined;
   const isBasic = rules.mode === 'basic';
   const halfLabel = game.halfInning === 'top' ? '▲' : '▼';
 
   const renderBatterRow = ({ item, index }: { item: Player; index: number }) => {
-    const isCurrentBatter = index === game.currentBatterIndex % activePlayers.length;
+    const isCurrentBatter = activePlayers.length > 0 && index === game.currentBatterIndex % activePlayers.length;
     const isOnDeck = index === onDeckIndex;
     return (
       <View style={[styles.batterRow, {
@@ -767,8 +1108,24 @@ export default function LiveGameScreen() {
         onReturnHome={handleReturnHome}
         onRainDelay={() => setShowRainDelay(true)}
         onOpenSettings={() => setShowGameSettings(true)}
+        onEditLineup={() => setShowEditLineup(true)}
         onEndGame={() => setShowEndGameConfirm(true)}
         onClose={() => setShowGameMenu(false)}
+      />
+
+      <EditLineupModal
+        visible={showEditLineup}
+        lineup={game.setup.lineupSnapshot}
+        currentBatterId={currentBatter?.id}
+        onClose={() => setShowEditLineup(false)}
+        onSave={(next) => {
+          // Commit the new lineup. currentBatterIndex is modulo'd against the
+          // active count in GameContext.getCurrentPlayer(), so the rotation
+          // stays valid even if the active count changed. If the current
+          // batter was made inactive, the coach can adjust with Prev/Next.
+          updateGameSetup({ lineupSnapshot: next });
+          setShowEditLineup(false);
+        }}
       />
 
       <ConfirmModal

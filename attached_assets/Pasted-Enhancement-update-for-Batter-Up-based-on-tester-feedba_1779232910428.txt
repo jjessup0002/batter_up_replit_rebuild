@@ -1,0 +1,394 @@
+Enhancement update for Batter Up based on tester feedback.
+
+Please improve the Home Screen and game-start flow so the app feels less confusing and more intentional.
+
+Current issue:
+The “Last Used Lineup” card at the top of the Home Screen is confusing. Testers are not sure whether they are starting a new game, continuing a game, or simply editing a lineup.
+
+The main entry point should be:
+
+Start Game
+
+The user should not begin by choosing “Last Used Lineup” directly from the top of the Home Screen.
+
+1. Update Home Screen Priority
+
+Make the Home Screen focus on one clear primary action:
+
+Start Game
+
+The Home Screen should still allow access to:
+
+- Saved Lineups
+- Stats & History
+- Settings
+- Help / Tutorials
+
+But the most obvious action should be Start Game.
+
+Remove or de-emphasize the “Last Used Lineup” card from the top of the Home Screen.
+
+Do not show “Last Used Lineup” as the primary entry point.
+
+If keeping it somewhere, move it lower on the screen or place it inside Saved Lineups, but do not make it the main action.
+
+2. New Start Game Flow
+
+When the user taps Start Game, show a clear choice screen or bottom sheet titled:
+
+Start Game
+
+Give the user three options:
+
+1. New Game
+2. Continue Game
+3. Scheduled Game
+
+Use simple card-style choices.
+
+Option 1:
+
+New Game
+
+Description:
+Start a fresh game by loading an existing lineup or creating a new one.
+
+Option 2:
+
+Continue Game
+
+Description:
+Resume a game already in progress.
+
+Only show this option if there is an active unfinished game.
+
+If there is no active game, either hide this option or show it disabled with text:
+
+No game in progress
+
+Option 3:
+
+Scheduled Game
+
+Description:
+Start from a scheduled game and choose the lineup for that game.
+
+If schedule features are not fully built yet, this can be a placeholder flow, but it should not feel broken.
+
+3. New Game Flow
+
+If the user chooses:
+
+New Game
+
+Then prompt:
+
+Choose Lineup
+
+Options:
+
+- Load Saved Lineup
+- Create New Lineup
+
+If the user chooses Load Saved Lineup:
+
+- Show saved lineups
+- Allow the user to select one
+- Continue to Game Setup
+- Prefill Game Setup with default settings
+
+If the user chooses Create New Lineup:
+
+- Open the Lineup Editor
+- After saving the lineup, continue to Game Setup
+
+Flow:
+
+Home
+→ Start Game
+→ New Game
+→ Load Saved Lineup or Create New Lineup
+→ Game Setup
+→ Live Game
+
+4. Continue Game Flow
+
+If the user chooses:
+
+Continue Game
+
+Then resume the currently active game.
+
+Continue Game should use the lineup already loaded into that active game.
+
+It should not ask the user to load a lineup again.
+
+It should restore:
+
+- Current lineup
+- Current batter
+- On-deck batter
+- Score
+- Inning
+- Top/bottom inning
+- Outs
+- Balls and strikes, if enabled
+- Pitch count, if enabled
+- Runs this inning
+- Game mode
+- Game settings
+- Game events
+- Stats already tracked
+
+Flow:
+
+Home
+→ Start Game
+→ Continue Game
+→ Live Game
+
+If multiple active games are supported, show a list of active games.
+
+If only one active game is supported, go directly to that game.
+
+5. Scheduled Game Flow
+
+If the user chooses:
+
+Scheduled Game
+
+Then prompt the user to select or create a scheduled game.
+
+If the schedule feature exists:
+
+- Show upcoming scheduled games
+- Let the user select one
+- Then prompt to load a saved lineup or create a lineup
+- Continue to Game Setup
+- Start game
+
+If schedule feature does not exist yet:
+
+Create a simple placeholder structure that supports the future feature without breaking the current app.
+
+For now, Scheduled Game can show:
+
+Scheduled Games
+
+No scheduled games yet.
+
+Buttons:
+- Create Scheduled Game
+- Back
+
+Create Scheduled Game should collect:
+
+- Opponent name
+- Game date
+- Game time, optional
+- Home or away
+- Notes, optional
+
+After creating a scheduled game, prompt:
+
+Choose Lineup
+
+Options:
+- Load Saved Lineup
+- Create New Lineup
+
+Then continue:
+
+Scheduled Game
+→ Choose Lineup
+→ Game Setup
+→ Live Game
+
+Flow:
+
+Home
+→ Start Game
+→ Scheduled Game
+→ Select or Create Scheduled Game
+→ Load Saved Lineup or Create New Lineup
+→ Game Setup
+→ Live Game
+
+6. Game Setup Still Applies
+
+Regardless of whether the user starts from New Game or Scheduled Game, the Game Setup screen should still appear before Live Game.
+
+Game Setup should confirm:
+
+- Lineup
+- Opponent
+- Home or away
+- Basic or Advanced Mode
+- Game type preset
+- Innings
+- Run limit
+- Outs per half inning
+- Other rule settings
+
+Continue Game should skip Game Setup unless the user opens Game Options manually.
+
+7. Home Screen Active Game Card
+
+If a game is currently in progress, show an active game card on the Home Screen.
+
+But do not make it confusing.
+
+The active game card should clearly say:
+
+Game in Progress
+
+Example:
+
+Game in Progress
+Batter Up vs Tigers
+Top 2nd
+Batter Up 4 | Tigers 3
+Current Batter: Mason Carter
+
+Button:
+Resume Game
+
+Secondary button:
+Game Options
+
+This card is different from “Last Used Lineup.”
+
+Do not label this as Last Used Lineup.
+
+8. Saved Lineups Should Be Separate
+
+Saved lineups should live under:
+
+Saved Lineups
+
+A saved lineup is not the same thing as a game in progress.
+
+Saved lineups can have actions:
+
+- Start New Game
+- Edit Lineup
+- Duplicate
+- Delete
+
+But Home Screen should not imply the user should always start from the last used lineup.
+
+9. UX Copy Rules
+
+Use clear language that matches how a coach thinks.
+
+Avoid confusing terms like:
+
+- Last Used Lineup as the main entry point
+- Resume lineup
+- Continue lineup
+
+Use clearer terms:
+
+- Start Game
+- New Game
+- Continue Game
+- Game in Progress
+- Load Saved Lineup
+- Create New Lineup
+- Scheduled Game
+
+10. Update Tutorials and Help Content
+
+Update the Help Center, tutorials, setup guide, and troubleshooting content to include this new Start Game workflow.
+
+Make sure users can learn:
+
+- Why Start Game is now the main entry point
+- Difference between New Game, Continue Game, and Scheduled Game
+- When to use New Game
+- When to use Continue Game
+- When to use Scheduled Game
+- How to load a saved lineup for a new game
+- How to create a new lineup for a new game
+- How to resume an active game
+- Why a saved lineup is different from a game in progress
+- What to do if Continue Game is disabled or hidden
+- What to do if there are no saved lineups yet
+- What to do if there are no scheduled games yet
+
+Tutorials should stay beginner-friendly and should use guided walkthroughs where appropriate, not just one-paragraph FAQ answers.
+
+Add or update tutorial walkthroughs for:
+
+Start Game Overview
+
+Suggested steps:
+1. Start Game is the main button
+2. Choose New Game, Continue Game, or Scheduled Game
+3. New Game starts fresh
+4. Continue Game resumes an active game
+5. Scheduled Game starts from a planned game
+
+New Game
+
+Suggested steps:
+1. Choose New Game
+2. Load a saved lineup or create a new lineup
+3. Confirm game settings
+4. Start tracking the game
+
+Continue Game
+
+Suggested steps:
+1. Choose Continue Game
+2. Batter Up restores the active game
+3. The current batter, score, inning, and lineup are preserved
+4. Resume tracking where you left off
+
+Scheduled Game
+
+Suggested steps:
+1. Choose Scheduled Game
+2. Select or create a scheduled game
+3. Load or create a lineup
+4. Confirm game settings
+5. Start the game
+
+Troubleshooting topics to add or update:
+
+- I do not see Continue Game
+- I accidentally went back to Home
+- I want to resume a game
+- I want to start a new game with a saved lineup
+- I do not have any saved lineups yet
+- I do not have any scheduled games yet
+- I am confused between a lineup and a game
+- I started the wrong game type
+
+Each troubleshooting topic should include:
+
+- What probably happened
+- How to fix it now
+- How to avoid it next time
+
+11. Validation After Update
+
+After making this change, verify:
+
+- Home Screen has Start Game as the primary action
+- Last Used Lineup is no longer the top/main entry point
+- Tapping Start Game opens choices for New Game, Continue Game, and Scheduled Game
+- Continue Game only appears or is enabled when there is an active game
+- New Game prompts user to load a saved lineup or create a new lineup
+- Scheduled Game prompts user to load a saved lineup or create a new lineup
+- Continue Game resumes the active game without asking for a lineup
+- Game Setup appears for New Game and Scheduled Game
+- Game Setup does not interrupt Continue Game
+- Active game card is clearly labeled Game in Progress
+- Saved Lineups remain accessible but separate from game-start flow
+- Existing lineup creation, editing, saving, and loading still works
+- Existing game tracking still works
+- Existing stats and history still work
+- Help Center includes the new Start Game workflow
+- Setup Guide includes the new Start Game workflow
+- Troubleshooting includes the new Start Game confusion points
