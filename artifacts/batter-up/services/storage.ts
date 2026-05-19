@@ -98,7 +98,16 @@ export async function clearActiveGame(): Promise<void> {
 export async function getSettings(): Promise<AppSettings> {
   try {
     const raw = await AsyncStorage.getItem(KEYS.SETTINGS);
-    return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
+    if (!raw) return DEFAULT_SETTINGS;
+    const parsed = JSON.parse(raw) as Partial<AppSettings> & { largeTextMode?: boolean };
+    // Legacy migration: old installs stored `largeTextMode: boolean`. If the new
+    // `textSize` field is absent, derive it from the legacy flag so existing
+    // users keep their preference after upgrade or restore from backup.
+    if (parsed.textSize === undefined && parsed.largeTextMode !== undefined) {
+      parsed.textSize = parsed.largeTextMode ? 'large' : 'standard';
+    }
+    delete parsed.largeTextMode;
+    return { ...DEFAULT_SETTINGS, ...parsed };
   } catch { return DEFAULT_SETTINGS; }
 }
 

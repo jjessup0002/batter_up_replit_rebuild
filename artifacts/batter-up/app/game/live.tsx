@@ -296,6 +296,79 @@ const gsStyles = StyleSheet.create({
   stepBtn: { width: 32, height: 32, borderWidth: 1, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 });
 
+// ─── Game Menu Modal ───────────────────────────────────────────────────────────
+
+function GameMenuModal({
+  visible, currentMode, onSwitchMode, onReturnHome, onRainDelay, onOpenSettings, onEndGame, onClose,
+}: {
+  visible: boolean;
+  currentMode: 'basic' | 'advanced';
+  onSwitchMode: () => void;
+  onReturnHome: () => void;
+  onRainDelay: () => void;
+  onOpenSettings: () => void;
+  onEndGame: () => void;
+  onClose: () => void;
+}) {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
+  const switchToLabel = currentMode === 'basic' ? 'Switch to Advanced Mode' : 'Switch to Basic Mode';
+
+  const items: { icon: string; label: string; sub?: string; onPress: () => void; destructive?: boolean }[] = [
+    { icon: 'home', label: 'Return to Home', sub: 'Game stays in progress', onPress: onReturnHome },
+    { icon: 'refresh-cw', label: switchToLabel, sub: 'Keeps score, lineup, and stats', onPress: onSwitchMode },
+    { icon: 'cloud-rain', label: 'Pause for Rain Delay', sub: 'Save and step away', onPress: onRainDelay },
+    { icon: 'sliders', label: 'Game Settings', sub: 'Opponent name and rules', onPress: onOpenSettings },
+    { icon: 'flag', label: 'End Game', sub: 'Save the final score and stats', onPress: onEndGame, destructive: true },
+  ];
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <TouchableOpacity style={gmStyles.overlay} activeOpacity={1} onPress={onClose}>
+        <TouchableOpacity activeOpacity={1} onPress={() => {}}>
+          <View style={[gmStyles.sheet, { backgroundColor: colors.card, paddingBottom: botPad + 12 }]}>
+            <View style={[gmStyles.handle, { backgroundColor: colors.border }]} />
+            <ThemedText variant="h3" align="center" style={{ marginBottom: 4 }}>Game Menu</ThemedText>
+            <ThemedText variant="caption" align="center" style={{ color: colors.mutedForeground, marginBottom: 16 }}>
+              Current mode: {currentMode === 'basic' ? 'Basic' : 'Advanced'}
+            </ThemedText>
+            {items.map((item) => (
+              <TouchableOpacity
+                key={item.label}
+                style={[gmStyles.row, { borderColor: colors.border }]}
+                onPress={() => { onClose(); setTimeout(item.onPress, 100); }}
+                activeOpacity={0.7}
+              >
+                <View style={[gmStyles.iconWrap, { backgroundColor: item.destructive ? colors.destructive + '15' : colors.secondary }]}>
+                  <Feather name={item.icon as any} size={18} color={item.destructive ? colors.destructive : colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ThemedText variant="body" style={{ fontWeight: '600', color: item.destructive ? colors.destructive : colors.foreground }}>
+                    {item.label}
+                  </ThemedText>
+                  {item.sub && (
+                    <ThemedText variant="caption" style={{ color: colors.mutedForeground, marginTop: 2 }}>{item.sub}</ThemedText>
+                  )}
+                </View>
+                <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            ))}
+            <Button title="Close" variant="outline" size="lg" fullWidth onPress={onClose} style={{ marginTop: 12 }} />
+          </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Modal>
+  );
+}
+const gmStyles = StyleSheet.create({
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  sheet: { borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 20 },
+  handle: { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 14 },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 8, gap: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  iconWrap: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+});
+
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
 export default function LiveGameScreen() {
@@ -384,6 +457,36 @@ export default function LiveGameScreen() {
   const handleSaveGameSettings = (opponentName: string, ruleChanges: Partial<typeof rules>) => {
     if (!game) return;
     updateGameSetup({ opponentName, rules: { ...game.setup.rules, ...ruleChanges } });
+  };
+
+  const handleConfirmSwitchMode = () => {
+    if (!game) return;
+    haptic();
+    const current = game.setup.rules;
+    const newMode = current.mode === 'basic' ? 'advanced' : 'basic';
+    // Normalize dependent tracking fields so the new mode is actually usable.
+    // Basic presets often have trackBalls/trackStrikes off and null thresholds;
+    // switching to advanced must enable count tracking with safe defaults.
+    // Preserve existing values when they're already set so coaches don't lose
+    // custom rule choices.
+    const nextRules: GameRules = newMode === 'advanced'
+      ? {
+          ...current,
+          mode: 'advanced',
+          trackBalls: true,
+          trackStrikes: true,
+          ballsForWalk: current.ballsForWalk ?? 4,
+          strikesForStrikeout: current.strikesForStrikeout ?? 3,
+        }
+      : { ...current, mode: 'basic' };
+    updateGameSetup({ rules: nextRules });
+    setShowModeSwitchConfirm(false);
+  };
+
+  const handleReturnHome = () => {
+    // Game state is auto-saved via GameContext useEffect; just navigate home.
+    // Home screen shows the Resume banner when an active game exists.
+    router.replace('/home');
   };
 
   if (!game) {
@@ -655,6 +758,28 @@ export default function LiveGameScreen() {
         game={game}
         onSave={handleSaveGameSettings}
         onClose={() => setShowGameSettings(false)}
+      />
+
+      <GameMenuModal
+        visible={showGameMenu}
+        currentMode={game.setup.rules.mode}
+        onSwitchMode={() => setShowModeSwitchConfirm(true)}
+        onReturnHome={handleReturnHome}
+        onRainDelay={() => setShowRainDelay(true)}
+        onOpenSettings={() => setShowGameSettings(true)}
+        onEndGame={() => setShowEndGameConfirm(true)}
+        onClose={() => setShowGameMenu(false)}
+      />
+
+      <ConfirmModal
+        visible={showModeSwitchConfirm}
+        title="Switch game mode?"
+        message={game.setup.rules.mode === 'basic'
+          ? 'Switch to Advanced Mode? You keep your score, lineup, and recorded stats. Advanced tracking (balls, strikes, RBIs, and more) will be available going forward.'
+          : 'Switch to Basic Mode? You keep your score, lineup, and recorded stats. Advanced controls will be hidden — you can switch back anytime.'}
+        confirmLabel={game.setup.rules.mode === 'basic' ? 'Switch to Advanced' : 'Switch to Basic'}
+        onConfirm={handleConfirmSwitchMode}
+        onCancel={() => setShowModeSwitchConfirm(false)}
       />
     </View>
   );
