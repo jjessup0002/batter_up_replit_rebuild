@@ -16,23 +16,25 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useApp } from '@/context/AppContext';
-import { AppMode, GameType } from '@/models/types';
+import { AppMode, DisplayMode, GameType } from '@/models/types';
 import { performAutoBackup } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
 const { width } = Dimensions.get('window');
-const TOTAL_STEPS = 6;
+const TOTAL_STEPS = 7;
 
 export default function OnboardingScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { updateSettings } = useApp();
+
   const [step, setStep] = useState(0);
   const [selectedMode, setSelectedMode] = useState<AppMode>('basic');
   const [selectedGameType, setSelectedGameType] = useState<GameType>('kid_pitch');
+  const [selectedDisplay, setSelectedDisplay] = useState<DisplayMode>('system');
   const [wantsAutoBackup, setWantsAutoBackup] = useState(false);
-  const [goCreateAfterOnboarding, setGoCreateAfterOnboarding] = useState(false);
+  const [goCreate, setGoCreate] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const goToStep = (s: number) => {
@@ -46,6 +48,7 @@ export default function OnboardingScreen() {
       onboardingComplete: true,
       mode: selectedMode,
       defaultGameType: selectedGameType,
+      displayMode: selectedDisplay,
       autoBackupEnabled: wantsAutoBackup,
       hasAskedAboutBackup: true,
     });
@@ -54,29 +57,23 @@ export default function OnboardingScreen() {
     }
     if (showTutorial) {
       router.replace('/tutorial');
-    } else if (goCreateAfterOnboarding) {
+    } else if (goCreate) {
       router.replace('/lineups/editor');
     } else {
       router.replace('/home');
     }
   };
 
-  const goToTutorialPrompt = (goCreate: boolean) => {
-    setGoCreateAfterOnboarding(goCreate);
-    goToStep(5);
-  };
-
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const botPad = Platform.OS === 'web' ? 34 : insets.bottom;
-
   const backupAvailable = Platform.OS !== 'web';
   const cloudName = Platform.OS === 'ios' ? 'iCloud' : 'Google Drive';
-  const cloudDesc =
-    Platform.OS === 'ios'
-      ? "Backed up automatically through iCloud — free with your Apple ID. Restore everything if you get a new phone or reinstall."
-      : Platform.OS === 'android'
-      ? "Backed up automatically through Google Drive — free with your Google account. Restore everything on any Android device."
-      : "Automatic backup is available on iPhone and Android.";
+
+  const displayOptions: { id: DisplayMode; icon: 'monitor' | 'sun' | 'moon'; label: string; desc: string }[] = [
+    { id: 'system', icon: 'monitor', label: 'System Default', desc: 'Follows your phone\'s display settings automatically.' },
+    { id: 'light', icon: 'sun', label: 'Light Mode', desc: 'High contrast. Best for outdoor use in bright sunlight.' },
+    { id: 'dark', icon: 'moon', label: 'Dark Mode', desc: 'Easy on the eyes. Best for evening or night games.' },
+  ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -130,54 +127,51 @@ export default function OnboardingScreen() {
               You can change this anytime in Settings.
             </ThemedText>
 
-            <TouchableOpacity
-              onPress={() => setSelectedMode('basic')}
-              style={[styles.modeCard, { borderColor: selectedMode === 'basic' ? colors.primary : colors.border, backgroundColor: colors.card }]}
-              activeOpacity={0.8}
-            >
-              <View style={styles.modeCardHeader}>
-                <View style={[styles.modeIcon, { backgroundColor: colors.secondary }]}>
-                  <Feather name="zap" size={22} color={colors.primary} />
+            {([
+              {
+                id: 'basic' as AppMode,
+                icon: 'zap',
+                title: 'Basic Mode',
+                sub: 'Best for quick games',
+                desc: 'Track lineup, score, inning, current batter, and game summary.',
+                recommended: true,
+              },
+              {
+                id: 'advanced' as AppMode,
+                icon: 'activity',
+                title: 'Advanced Mode',
+                sub: 'Best for detailed tracking',
+                desc: 'Track balls, strikes, pitch rules, hits, walks, outs, runs, player stats, and analytics.',
+                recommended: false,
+              },
+            ]).map((m) => (
+              <TouchableOpacity
+                key={m.id}
+                onPress={() => setSelectedMode(m.id)}
+                style={[styles.modeCard, { borderColor: selectedMode === m.id ? colors.primary : colors.border, backgroundColor: colors.card }]}
+                activeOpacity={0.8}
+              >
+                <View style={styles.modeCardHeader}>
+                  <View style={[styles.modeIcon, { backgroundColor: colors.secondary }]}>
+                    <Feather name={m.icon as any} size={22} color={colors.primary} />
+                  </View>
+                  {selectedMode === m.id && (
+                    <View style={[styles.selectedBadge, { backgroundColor: colors.primary }]}>
+                      <Feather name="check" size={12} color="#fff" />
+                      <ThemedText variant="caption" color="#fff" style={{ marginLeft: 4 }}>Selected</ThemedText>
+                    </View>
+                  )}
                 </View>
-                {selectedMode === 'basic' && (
-                  <View style={[styles.selectedBadge, { backgroundColor: colors.primary }]}>
-                    <Feather name="check" size={12} color="#fff" />
-                    <ThemedText variant="caption" color="#fff" style={{ marginLeft: 4 }}>Selected</ThemedText>
+                <ThemedText variant="h2" style={{ marginTop: 12 }}>{m.title}</ThemedText>
+                <ThemedText variant="caption" style={{ marginTop: 4, marginBottom: 8 }}>{m.sub}</ThemedText>
+                <ThemedText variant="body" color={colors.mutedForeground}>{m.desc}</ThemedText>
+                {m.recommended && (
+                  <View style={[styles.recommendedBadge, { backgroundColor: colors.accent }]}>
+                    <ThemedText variant="caption" style={{ fontWeight: '700' }}>Recommended for most coaches</ThemedText>
                   </View>
                 )}
-              </View>
-              <ThemedText variant="h2" style={{ marginTop: 12 }}>Basic Mode</ThemedText>
-              <ThemedText variant="caption" style={{ marginTop: 4, marginBottom: 8 }}>Best for quick games</ThemedText>
-              <ThemedText variant="body" color={colors.mutedForeground}>
-                Track lineup, score, inning, current batter, and game summary.
-              </ThemedText>
-              <View style={[styles.recommendedBadge, { backgroundColor: colors.accent }]}>
-                <ThemedText variant="caption" style={{ fontWeight: '700' }}>Recommended for most coaches</ThemedText>
-              </View>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => setSelectedMode('advanced')}
-              style={[styles.modeCard, { borderColor: selectedMode === 'advanced' ? colors.primary : colors.border, backgroundColor: colors.card }]}
-              activeOpacity={0.8}
-            >
-              <View style={styles.modeCardHeader}>
-                <View style={[styles.modeIcon, { backgroundColor: '#EBF3FF' }]}>
-                  <Feather name="activity" size={22} color={colors.primary} />
-                </View>
-                {selectedMode === 'advanced' && (
-                  <View style={[styles.selectedBadge, { backgroundColor: colors.primary }]}>
-                    <Feather name="check" size={12} color="#fff" />
-                    <ThemedText variant="caption" color="#fff" style={{ marginLeft: 4 }}>Selected</ThemedText>
-                  </View>
-                )}
-              </View>
-              <ThemedText variant="h2" style={{ marginTop: 12 }}>Advanced Mode</ThemedText>
-              <ThemedText variant="caption" style={{ marginTop: 4, marginBottom: 8 }}>Best for detailed tracking</ThemedText>
-              <ThemedText variant="body" color={colors.mutedForeground}>
-                Track balls, strikes, pitch rules, hits, walks, outs, runs, player stats, and analytics.
-              </ThemedText>
-            </TouchableOpacity>
+              </TouchableOpacity>
+            ))}
           </View>
           <View style={styles.navRow}>
             <Button title="Back" variant="outline" size="md" onPress={() => goToStep(0)} style={{ flex: 1 }} />
@@ -229,18 +223,64 @@ export default function OnboardingScreen() {
           </View>
         </View>
 
-        {/* ─── Step 3: Auto-Backup ─── */}
+        {/* ─── Step 3: Display Preference ─── */}
         <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 60 }]}>
           <View style={styles.pageContent}>
-            {/* Icon */}
-            <View style={[styles.backupIconWrap, { backgroundColor: colors.secondary }]}>
-              <Feather name="shield" size={40} color={colors.primary} />
+            <View style={[styles.stepIconWrap, { backgroundColor: colors.secondary }]}>
+              <Feather name="sun" size={36} color={colors.primary} />
+            </View>
+            <ThemedText variant="h1" align="center" style={{ marginTop: 20 }}>Choose Your Display</ThemedText>
+            <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 8, marginBottom: 24, paddingHorizontal: 8 }}>
+              Coaches use this app in bright sunlight and at evening games. Pick the look that works best for you.
+            </ThemedText>
+
+            {displayOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.id}
+                onPress={() => setSelectedDisplay(opt.id)}
+                style={[
+                  styles.typeRow,
+                  {
+                    borderColor: selectedDisplay === opt.id ? colors.primary : colors.border,
+                    backgroundColor: selectedDisplay === opt.id ? colors.secondary : colors.card,
+                  },
+                ]}
+                activeOpacity={0.8}
+              >
+                <View style={[styles.displayIconWrap, { backgroundColor: selectedDisplay === opt.id ? colors.primary : colors.muted }]}>
+                  <Feather name={opt.icon} size={18} color={selectedDisplay === opt.id ? '#fff' : colors.mutedForeground} />
+                </View>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <ThemedText variant="h3">{opt.label}</ThemedText>
+                  <ThemedText variant="caption" style={{ marginTop: 2 }}>{opt.desc}</ThemedText>
+                </View>
+                <View style={[styles.radioOuter, { borderColor: selectedDisplay === opt.id ? colors.primary : colors.border }]}>
+                  {selectedDisplay === opt.id && <View style={[styles.radioInner, { backgroundColor: colors.primary }]} />}
+                </View>
+              </TouchableOpacity>
+            ))}
+
+            <ThemedText variant="caption" color={colors.mutedForeground} align="center" style={{ marginTop: 12 }}>
+              You can change this anytime in Settings.
+            </ThemedText>
+          </View>
+          <View style={styles.navRow}>
+            <Button title="Back" variant="outline" size="md" onPress={() => goToStep(2)} style={{ flex: 1 }} />
+            <Button title="Next" size="md" onPress={() => goToStep(4)} style={{ flex: 2, marginLeft: 10 }} />
+          </View>
+        </View>
+
+        {/* ─── Step 4: Auto-Backup ─── */}
+        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 60 }]}>
+          <View style={styles.pageContent}>
+            <View style={[styles.stepIconWrap, { backgroundColor: colors.secondary }]}>
+              <Feather name="shield" size={36} color={colors.primary} />
             </View>
 
             <ThemedText variant="h1" align="center" style={{ marginTop: 20 }}>
               Never lose your lineup
             </ThemedText>
-            <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 10, marginBottom: 28, paddingHorizontal: 8 }}>
+            <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 10, marginBottom: 24, paddingHorizontal: 8 }}>
               {backupAvailable
                 ? `Enable automatic backup and your lineups, games, and settings will be safe — even if you switch phones.`
                 : `Your lineups and game data are stored on this device.`}
@@ -248,42 +288,29 @@ export default function OnboardingScreen() {
 
             {backupAvailable ? (
               <>
-                {/* How it works */}
                 <Card style={{ marginBottom: 20 }}>
-                  <View style={styles.featureRow}>
-                    <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
-                      <Feather name="cloud" size={16} color={colors.primary} />
+                  {[
+                    { icon: 'cloud', title: `Backed up to ${cloudName}`, desc: 'Free with your existing account. Restore everything if you switch phones.' },
+                    { icon: 'refresh-cw', title: 'Happens automatically', desc: 'No setup needed. Batter Up saves quietly in the background.' },
+                    { icon: 'lock', title: 'Private and free', desc: 'No Batter Up account needed. Uses your existing cloud storage.' },
+                  ].map((row, i) => (
+                    <View key={i} style={[styles.featureRow, i > 0 ? { marginTop: 14 } : {}]}>
+                      <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
+                        <Feather name={row.icon as any} size={16} color={colors.primary} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <ThemedText variant="body" style={{ fontWeight: '600' }}>{row.title}</ThemedText>
+                        <ThemedText variant="caption" style={{ marginTop: 3 }}>{row.desc}</ThemedText>
+                      </View>
                     </View>
-                    <View style={{ flex: 1 }}>
-                      <ThemedText variant="body" style={{ fontWeight: '600' }}>Backed up to {cloudName}</ThemedText>
-                      <ThemedText variant="caption" style={{ marginTop: 3 }}>{cloudDesc}</ThemedText>
-                    </View>
-                  </View>
-                  <View style={[styles.featureRow, { marginTop: 14 }]}>
-                    <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
-                      <Feather name="refresh-cw" size={16} color={colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <ThemedText variant="body" style={{ fontWeight: '600' }}>Happens automatically</ThemedText>
-                      <ThemedText variant="caption" style={{ marginTop: 3 }}>No setup needed. Batter Up saves quietly in the background.</ThemedText>
-                    </View>
-                  </View>
-                  <View style={[styles.featureRow, { marginTop: 14 }]}>
-                    <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
-                      <Feather name="lock" size={16} color={colors.primary} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <ThemedText variant="body" style={{ fontWeight: '600' }}>Private and free</ThemedText>
-                      <ThemedText variant="caption" style={{ marginTop: 3 }}>No Batter Up account needed. Uses your existing {cloudName} storage.</ThemedText>
-                    </View>
-                  </View>
+                  ))}
                 </Card>
 
                 <Button
                   title={`Enable Auto-Backup via ${cloudName}`}
                   size="lg"
                   fullWidth
-                  onPress={() => { setWantsAutoBackup(true); goToStep(4); }}
+                  onPress={() => { setWantsAutoBackup(true); goToStep(5); }}
                   style={{ marginBottom: 10 }}
                 />
                 <Button
@@ -291,24 +318,60 @@ export default function OnboardingScreen() {
                   variant="outline"
                   size="lg"
                   fullWidth
-                  onPress={() => { setWantsAutoBackup(false); goToStep(4); }}
+                  onPress={() => { setWantsAutoBackup(false); goToStep(5); }}
                 />
               </>
             ) : (
-              <Button
-                title="Continue"
-                size="lg"
-                fullWidth
-                onPress={() => goToStep(4)}
-              />
+              <Button title="Continue" size="lg" fullWidth onPress={() => goToStep(5)} />
             )}
           </View>
           <View style={[styles.navRow, { marginTop: 12 }]}>
-            <Button title="Back" variant="ghost" size="sm" onPress={() => goToStep(2)} />
+            <Button title="Back" variant="ghost" size="sm" onPress={() => goToStep(3)} />
           </View>
         </View>
 
-        {/* ─── Step 4: Finish ─── */}
+        {/* ─── Step 5: Help Is Always Available ─── */}
+        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 60 }]}>
+          <View style={styles.pageContent}>
+            <View style={[styles.stepIconWrap, { backgroundColor: '#EBF3FF' }]}>
+              <Feather name="help-circle" size={36} color={colors.primary} />
+            </View>
+            <ThemedText variant="h1" align="center" style={{ marginTop: 20 }}>
+              Help is always here
+            </ThemedText>
+            <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 10, marginBottom: 28, paddingHorizontal: 8 }}>
+              Batter Up has a full Help Center you can open anytime from the Home screen or Settings.
+            </ThemedText>
+
+            <Card style={{ marginBottom: 16 }}>
+              {[
+                { icon: 'zap', title: 'Quick Start', desc: 'Learn the basics in 2 minutes. Create a lineup, start a game, and track batters.' },
+                { icon: 'book-open', title: 'Tutorial Library', desc: 'Step-by-step guides for game setup, advanced tracking, and stats.' },
+                { icon: 'alert-circle', title: 'Troubleshooting', desc: 'Answers to common questions and how to fix mistakes fast.' },
+              ].map((row, i) => (
+                <View key={i} style={[styles.featureRow, i > 0 ? { marginTop: 14 } : {}]}>
+                  <View style={[styles.featureIcon, { backgroundColor: colors.secondary }]}>
+                    <Feather name={row.icon as any} size={16} color={colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText variant="body" style={{ fontWeight: '600' }}>{row.title}</ThemedText>
+                    <ThemedText variant="caption" style={{ marginTop: 3 }}>{row.desc}</ThemedText>
+                  </View>
+                </View>
+              ))}
+            </Card>
+
+            <ThemedText variant="caption" color={colors.mutedForeground} align="center" style={{ paddingHorizontal: 16 }}>
+              Access Help from the Home screen grid or from Settings at any time.
+            </ThemedText>
+          </View>
+          <View style={styles.navRow}>
+            <Button title="Back" variant="outline" size="md" onPress={() => goToStep(4)} style={{ flex: 1 }} />
+            <Button title="Next" size="md" onPress={() => goToStep(6)} style={{ flex: 2, marginLeft: 10 }} />
+          </View>
+        </View>
+
+        {/* ─── Step 6: Ready to Start ─── */}
         <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 60 }]}>
           <View style={styles.pageContent}>
             <View style={[styles.checkCircle, { backgroundColor: colors.primary }]}>
@@ -317,69 +380,44 @@ export default function OnboardingScreen() {
             <ThemedText variant="h1" align="center" style={{ marginTop: 24 }}>
               You're all set!
             </ThemedText>
-            <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 10, marginBottom: 40 }}>
-              {selectedMode === 'basic' ? 'Basic Mode' : 'Advanced Mode'} selected with{' '}
+            <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 10, marginBottom: 32, paddingHorizontal: 8 }}>
+              {selectedMode === 'basic' ? 'Basic Mode' : 'Advanced Mode'} with{' '}
               {selectedGameType === 'tball' ? 'T-Ball' :
                selectedGameType === 'coach_pitch' ? 'Coach Pitch' :
-               selectedGameType === 'kid_pitch' ? 'Kid Pitch' : 'Custom'} rules.
+               selectedGameType === 'kid_pitch' ? 'Kid Pitch' : 'Custom'} rules.{' '}
+              Display set to{' '}
+              {selectedDisplay === 'system' ? 'System Default' :
+               selectedDisplay === 'light' ? 'Light Mode' : 'Dark Mode'}.
             </ThemedText>
 
-            <View style={styles.finishOptions}>
-              <Card style={{ padding: 20, marginBottom: 16, alignItems: 'center' }}>
-                <Feather name="users" size={28} color={colors.primary} style={{ marginBottom: 10 }} />
-                <ThemedText variant="h3" align="center">Create Your First Lineup</ThemedText>
-                <ThemedText variant="caption" align="center" style={{ marginTop: 4, marginBottom: 14 }}>
-                  Add your players and set the batting order
-                </ThemedText>
-                <Button title="Create First Lineup" fullWidth onPress={() => goToTutorialPrompt(true)} />
-              </Card>
-
+            <Card style={{ padding: 20, marginBottom: 14, alignItems: 'center' }}>
+              <Feather name="users" size={28} color={colors.primary} style={{ marginBottom: 10 }} />
+              <ThemedText variant="h3" align="center">Create Your First Lineup</ThemedText>
+              <ThemedText variant="caption" align="center" style={{ marginTop: 4, marginBottom: 14 }}>
+                Add your players and set the batting order
+              </ThemedText>
               <Button
-                title="Go to Home"
-                variant="outline"
+                title="Create First Lineup"
                 fullWidth
-                size="lg"
-                onPress={() => goToTutorialPrompt(false)}
+                onPress={() => { setGoCreate(true); handleFinish(false); }}
               />
-            </View>
-          </View>
-        </View>
-
-        {/* ─── Step 5: Tutorial prompt ─── */}
-        <View style={[styles.page, { paddingTop: topPad + 20, paddingBottom: botPad + 60 }]}>
-          <View style={styles.pageContent}>
-            <View style={[styles.tutorialIconWrap, { backgroundColor: '#EBF3FF' }]}>
-              <Feather name="compass" size={40} color={colors.primary} />
-            </View>
-            <ThemedText variant="h1" align="center" style={{ marginTop: 24 }}>
-              Want a quick tour?
-            </ThemedText>
-            <ThemedText variant="body" color={colors.mutedForeground} align="center" style={{ marginTop: 10, marginBottom: 36, paddingHorizontal: 8 }}>
-              A one-minute walkthrough covering lineups, live game tracking, and stats — so you're ready before the first pitch.
-            </ThemedText>
+            </Card>
 
             <Button
-              title="Show Me Around"
-              size="xl"
-              fullWidth
-              onPress={() => handleFinish(true)}
-              style={{ marginBottom: 14 }}
-            />
-            <Button
-              title="I'll Explore on My Own"
-              variant="outline"
+              title="Take a Quick Tour First"
               size="lg"
               fullWidth
-              onPress={() => handleFinish(false)}
+              variant="outline"
+              onPress={() => handleFinish(true)}
+              style={{ marginBottom: 10 }}
             />
-            <ThemedText
-              variant="caption"
-              color={colors.mutedForeground}
-              align="center"
-              style={{ marginTop: 14, paddingHorizontal: 16 }}
-            >
-              You can always start the tutorial from Settings.
-            </ThemedText>
+            <Button
+              title="Go to Home"
+              variant="ghost"
+              size="md"
+              fullWidth
+              onPress={() => { setGoCreate(false); handleFinish(false); }}
+            />
           </View>
         </View>
       </ScrollView>
@@ -420,10 +458,9 @@ const styles = StyleSheet.create({
   typeRadio: { marginRight: 12 },
   radioOuter: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   radioInner: { width: 10, height: 10, borderRadius: 5 },
-  backupIconWrap: { width: 88, height: 88, borderRadius: 24, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 20 },
+  displayIconWrap: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  stepIconWrap: { width: 80, height: 80, borderRadius: 22, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 20 },
   checkCircle: { width: 80, height: 80, borderRadius: 40, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 40 },
-  tutorialIconWrap: { width: 88, height: 88, borderRadius: 24, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginTop: 40 },
-  finishOptions: { flex: 1, justifyContent: 'flex-start' },
   navRow: { flexDirection: 'row', marginTop: 16 },
   dots: { position: 'absolute', flexDirection: 'row', alignSelf: 'center', gap: 6, alignItems: 'center' },
   dot: { height: 8, borderRadius: 4 },

@@ -41,6 +41,7 @@ function RootLayoutNav() {
       <Stack.Screen name="schedule/index" />
       <Stack.Screen name="schedule/editor" />
       <Stack.Screen name="schedule/seasons" />
+      <Stack.Screen name="help" />
     </Stack>
   );
 }

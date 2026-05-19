@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Card } from '@/components/ui/Card';
 import { ThemedText } from '@/components/ui/ThemedText';
 import { useApp } from '@/context/AppContext';
-import { AppMode, GAME_RULE_PRESETS, GameRules, GameType } from '@/models/types';
+import { AppMode, DisplayMode, GAME_RULE_PRESETS, GameRules, GameType } from '@/models/types';
 import { getBackupData, restoreFromBackup } from '@/services/storage';
 import { useColors } from '@/hooks/useColors';
 
@@ -424,6 +424,45 @@ export default function SettingsScreen() {
         {/* Display */}
         <SectionHeader title="DISPLAY" />
         <Card style={{ marginBottom: 14 }}>
+          {/* Display Mode picker */}
+          <View style={[styles.settingRow, { borderBottomColor: colors.border, flexDirection: 'column', alignItems: 'flex-start', gap: 10 }]}>
+            <ThemedText variant="body" style={{ fontWeight: '600' }}>Display Mode</ThemedText>
+            <ThemedText variant="caption" style={{ color: colors.mutedForeground, marginTop: -4 }}>
+              Light Mode is best for sunny fields. Dark Mode is best for evening games.
+            </ThemedText>
+            <View style={styles.displayModeRow}>
+              {([
+                ['system', 'monitor', 'System'],
+                ['light', 'sun', 'Light'],
+                ['dark', 'moon', 'Dark'],
+              ] as [DisplayMode, string, string][]).map(([m, icon, label]) => (
+                <TouchableOpacity
+                  key={m}
+                  style={[
+                    styles.displayModeBtn,
+                    {
+                      backgroundColor: settings.displayMode === m ? colors.primary : colors.muted,
+                      borderColor: settings.displayMode === m ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => update({ displayMode: m })}
+                >
+                  <Feather
+                    name={icon as any}
+                    size={15}
+                    color={settings.displayMode === m ? '#fff' : colors.mutedForeground}
+                  />
+                  <ThemedText
+                    variant="caption"
+                    color={settings.displayMode === m ? '#fff' : colors.foreground}
+                    style={{ marginLeft: 5, fontWeight: settings.displayMode === m ? '700' : '400' }}
+                  >
+                    {label}
+                  </ThemedText>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
           <SettingRow label="Large text mode" sub="Bigger text for easier reading">
             <Switch value={settings.largeTextMode} onValueChange={(v) => update({ largeTextMode: v })} trackColor={{ true: colors.primary }} />
           </SettingRow>
@@ -469,17 +508,26 @@ export default function SettingsScreen() {
         {/* Help */}
         <SectionHeader title="HELP" />
         <Card style={{ marginBottom: 14 }}>
-          <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/tutorial')}>
-            <Feather name="book-open" size={18} color={colors.primary} />
+          <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/help')}>
+            <Feather name="help-circle" size={18} color={colors.primary} />
             <View style={{ flex: 1, marginLeft: 10 }}>
-              <ThemedText variant="body" color={colors.primary} style={{ fontWeight: '600' }}>How It Works</ThemedText>
-              <ThemedText variant="caption">6-slide walkthrough of the app</ThemedText>
+              <ThemedText variant="body" color={colors.primary} style={{ fontWeight: '600' }}>Help Center</ThemedText>
+              <ThemedText variant="caption">Quick Start, tutorials, and troubleshooting</ThemedText>
             </View>
             <Feather name="chevron-right" size={18} color={colors.primary} />
           </TouchableOpacity>
           <View style={[styles.divider, { backgroundColor: colors.border }]} />
+          <TouchableOpacity style={styles.actionRow} onPress={() => router.push('/tutorial')}>
+            <Feather name="book-open" size={18} color={colors.mutedForeground} />
+            <View style={{ flex: 1, marginLeft: 10 }}>
+              <ThemedText variant="body" style={{ fontWeight: '600' }}>How It Works</ThemedText>
+              <ThemedText variant="caption">6-slide walkthrough of the app</ThemedText>
+            </View>
+            <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+          </TouchableOpacity>
+          <View style={[styles.divider, { backgroundColor: colors.border }]} />
           <TouchableOpacity style={styles.actionRow} onPress={handleResetOnboarding}>
-            <Feather name="help-circle" size={18} color={colors.mutedForeground} />
+            <Feather name="compass" size={18} color={colors.mutedForeground} />
             <ThemedText variant="body" style={{ marginLeft: 10 }}>View Setup Guide</ThemedText>
             <Feather name="chevron-right" size={18} color={colors.mutedForeground} style={{ marginLeft: 'auto' }} />
           </TouchableOpacity>
@@ -523,6 +571,17 @@ const styles = StyleSheet.create({
   actionRow: { flexDirection: 'row', alignItems: 'center', padding: 14 },
   divider: { height: StyleSheet.hairlineWidth, marginHorizontal: 16 },
   about: { paddingVertical: 24, gap: 2 },
+  displayModeRow: { flexDirection: 'row', gap: 8, width: '100%' },
+  displayModeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    borderWidth: 1.5,
+  },
   presetRow: { borderBottomWidth: StyleSheet.hairlineWidth },
   presetHeader: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 16 },
   presetBody: { borderTopWidth: StyleSheet.hairlineWidth, backgroundColor: 'transparent' },

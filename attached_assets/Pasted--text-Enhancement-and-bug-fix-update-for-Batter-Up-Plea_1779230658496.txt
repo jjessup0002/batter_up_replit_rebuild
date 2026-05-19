@@ -1,0 +1,525 @@
+```text
+Enhancement and bug-fix update for Batter Up.
+
+Please add the following improvements to the current app while keeping the existing user flow, style, and working features intact.
+
+This update focuses on:
+- Light Mode / Dark Mode / System Default
+- Expanded tutorials and help content
+- Troubleshooting guidance
+- Better onboarding around new features
+- Fixing broken Android icons
+- Keeping Basic Mode simple
+- Keeping Advanced Mode thorough but organized
+
+1. Add Light Mode, Dark Mode, and System Default
+
+Add full display mode support:
+
+- System Default
+- Light Mode
+- Dark Mode
+
+Add this setting to the Settings screen under a section called:
+
+Display
+
+Field:
+
+Display Mode
+
+Options:
+
+- System Default
+- Light Mode
+- Dark Mode
+
+Default should be System Default.
+
+This app will often be used outside at baseball and softball fields. Coaches may be standing in direct sunlight, under bright overhead sun, in a shaded dugout, or at evening games. The display modes need to account for that.
+
+Light Mode should be optimized for outdoor daytime use:
+
+- High contrast
+- Easy-to-read text
+- Clear primary buttons
+- White or very light cards
+- Strong button contrast
+- No low-contrast gray-on-gray text
+- Current batter and key game info must be very easy to see
+
+Dark Mode should be optimized for evening games and low-light use:
+
+- Dark background
+- Readable cards
+- Clear buttons
+- Comfortable contrast
+- No harsh unreadable color combinations
+- Keep Batter Up branding consistent
+
+Use the existing Batter Up theme/design tokens. Do not hardcode random colors throughout individual screens.
+
+Create or update the theme system so these screens respond properly to display mode:
+
+- Onboarding
+- Home
+- Saved Lineups
+- Lineup Editor
+- Game Setup
+- Live Game
+- Game Summary
+- Player Stats
+- Team Analytics
+- Settings
+- Help / Tutorial screens
+
+The Live Game screen is the highest priority. It must be readable in bright sun and at night.
+
+2. Expand the Help / Tutorial System
+
+The current simple tutorial is good. Keep that style, but expand it into a more complete Help Center.
+
+Add a Help / Tutorials area that users can access from:
+
+- Home screen
+- Settings screen
+- Onboarding
+- Live Game screen through a small Help icon or “Need Help?” option
+
+The Help Center should have three main sections:
+
+- Quick Start
+- Tutorial Library
+- Troubleshooting & Common Questions
+
+Keep the Help Center friendly and beginner-focused. Write like this is for a volunteer little league coach, not a software developer or professional scorekeeper.
+
+3. Quick Start Tutorial
+
+The Quick Start tutorial should remain short and simple.
+
+It should explain:
+
+- What Batter Up does
+- Basic Mode vs Advanced Mode
+- How to create a lineup
+- How to save a lineup
+- How to load a lineup
+- How to start a game
+- How to use Next Batter
+- How to track score
+- How to use Undo
+- How to end a game
+- Where to find the game summary
+
+This should be short enough that a new coach can understand the app in 2–3 minutes.
+
+4. Tutorial Library
+
+Add a topic-based tutorial library.
+
+Create a screen called:
+
+Help Center
+
+or
+
+Tutorials
+
+The screen should show topic cards. Each card opens a simple explanation with examples.
+
+Suggested tutorial categories and topics:
+
+Getting Started
+
+- Basic Mode vs Advanced Mode
+- Creating your first lineup
+- Saving and loading lineups
+- Editing a lineup
+- Editing a lineup during a game
+- Marking a player active or inactive
+- Starting a game from a saved lineup
+
+Game Setup
+
+- Choosing home or away
+- Setting the number of innings
+- Setting max runs per inning
+- Choosing T-Ball, Coach Pitch, or Kid Pitch
+- Changing game rules
+- Saving default game settings
+- Choosing Light Mode or Dark Mode
+
+During the Game
+
+- Tracking the current batter
+- Understanding the on-deck batter
+- Using Next Batter
+- Using Previous Batter
+- Tracking score
+- Tracking runs this inning
+- Ending a half-inning
+- Moving from top to bottom of an inning
+- Using Undo
+- Fixing mistakes during a game
+
+Advanced Tracking
+
+- Tracking balls and strikes
+- Tracking pitch count
+- Handling foul balls
+- Handling max pitch rules
+- Recording a hit
+- Recording an out
+- Recording a walk
+- Recording a strikeout
+- Recording hit by pitch
+- Recording RBIs
+- Recording runs
+- Using the More button
+
+Stats and Summary
+
+- Viewing the game summary
+- Understanding player stats
+- Understanding team stats
+- Viewing progress over time
+- What batting average means
+- What on-base percentage means
+- What strikeout rate means
+- What walk rate means
+
+Use simple language.
+
+If a baseball abbreviation is used, explain it.
+
+Example:
+
+“RBI means Run Batted In. It is counted when a batter helps a runner score.”
+
+5. Troubleshooting & Common Questions
+
+Add a troubleshooting-style help section.
+
+This should help users who may think something is broken, but really just need help understanding what to do next.
+
+Create a section called:
+
+Troubleshooting & Common Questions
+
+Include topics like:
+
+- I can’t see the current batter
+- The next batter did not change
+- I tapped the wrong button
+- I need to undo something
+- I need to fix the score
+- I need to edit the lineup during a game
+- I need to skip a player
+- A player left the game
+- I need to add a player mid-game
+- I need to change from Basic Mode to Advanced Mode
+- I need to change from Advanced Mode to Basic Mode
+- I picked the wrong game rules
+- The inning did not advance
+- The run limit was reached
+- The app says the half-inning should end
+- I need to keep playing after the run limit
+- I need to change balls or strikes
+- I need to fix pitch count
+- I do not see stats I expected
+- My saved lineup is missing
+- I want to start a new game with the same lineup
+- I want to use the app in bright sunlight
+- I want to switch to dark mode
+- Icons or buttons look wrong on Android
+
+Each troubleshooting topic should include:
+
+- What probably happened
+- What to do next
+- A simple instruction or button name when possible
+
+Example topic:
+
+I tapped the wrong button
+
+Example answer:
+
+“No problem. Tap Undo to reverse the last action. Batter Up keeps track of recent game actions so you can correct mistakes quickly.”
+
+6. Contextual Help
+
+Add small contextual help where it makes sense.
+
+Use small info icons or “Need Help?” links, but do not clutter the app.
+
+Good places for contextual help:
+
+Game Setup screen:
+
+- Game Mode
+- Home/Away
+- Max Runs
+- Pitch Limit
+- Game Preset
+
+Live Game screen:
+
+- Small Help option for the current screen
+- Explain Undo
+- Explain Next Batter
+- Explain End Half-Inning
+
+Stats screens:
+
+- Explain batting average
+- Explain on-base percentage
+- Explain strikeout rate
+- Explain walk rate
+
+Basic Mode should stay clean and simple.
+
+Do not overload screens with help icons.
+
+7. Update Onboarding
+
+Update the onboarding wizard so it includes these new features while still staying short and friendly.
+
+Onboarding should include:
+
+Screen 1:
+Welcome to Batter Up
+
+- Use BatterUp_Logo
+- Explain that the app helps coaches manage lineups, track batters, and keep the game moving
+
+Screen 2:
+Choose Your Mode
+
+- Basic Mode
+- Advanced Mode
+
+Basic Mode copy:
+
+“Best for quick games. Track lineup, score, inning, current batter, and game summary.”
+
+Advanced Mode copy:
+
+“Best for detailed tracking. Track balls, strikes, pitch rules, hits, walks, outs, runs, player stats, and analytics.”
+
+Screen 3:
+Choose Default Game Type
+
+Options:
+
+- T-Ball
+- Coach Pitch
+- Kid Pitch
+- Custom
+
+Screen 4:
+Choose Display Preference
+
+Options:
+
+- System Default
+- Light Mode
+- Dark Mode
+
+Explain that Light Mode is helpful for sunny fields and Dark Mode is helpful for evening games.
+
+Screen 5:
+Help Is Always Available
+
+Mention:
+
+- Quick Start
+- Tutorial Library
+- Troubleshooting & Common Questions
+
+Screen 6:
+Ready to Start
+
+Buttons:
+
+- Create First Lineup
+- Go to Home
+
+The onboarding wizard should only show automatically the first time the app opens.
+
+Add a way to reopen it from Settings as:
+
+Setup Guide
+
+8. Help Center Search
+
+Add a simple search bar to the Help Center if it can be done cleanly.
+
+The user should be able to search for:
+
+- undo
+- score
+- lineup
+- inning
+- dark mode
+- light mode
+- pitch count
+- run limit
+- next batter
+- stats
+- current batter
+- advanced mode
+- basic mode
+
+Search should filter tutorial and troubleshooting topics.
+
+9. Fix Android Icons
+
+Icons are still not working correctly on Android.
+
+Please diagnose and fix the Android icon issue.
+
+Check the icon system currently used in the app.
+
+If this is a React Native / Expo app:
+
+- Confirm @expo/vector-icons is installed
+- Confirm icon imports are correct
+- Confirm icon names exist in the selected icon set
+- Confirm the app is not using web-only icons
+- Confirm fonts are loading correctly on Android
+- Replace broken icons with supported Expo vector icons if needed
+
+Preferred icon library:
+
+Use @expo/vector-icons with one or more of these:
+
+- Ionicons
+- MaterialIcons
+- MaterialCommunityIcons
+- Feather
+
+Do not use unsupported icon names.
+
+Make sure icons work on:
+
+- Android preview
+- iOS preview
+- Web preview, if available
+
+Important icon areas to check:
+
+- Home screen buttons
+- Saved lineup cards
+- Lineup editor move up icon
+- Lineup editor move down icon
+- Lineup editor delete icon
+- Settings icons
+- Help/tutorial icons
+- Live Game screen buttons
+- Bottom navigation, if used
+
+The app must not show:
+
+- Missing icon boxes
+- Broken symbols
+- Blank icon spaces
+- Web-only icons that fail on Android
+
+If an icon is unreliable, replace it with a supported Expo icon or a clear text label.
+
+10. Protect Basic Mode Simplicity
+
+As these features are added, Basic Mode must stay intuitive.
+
+Basic Mode should feel like this:
+
+Open app
+Choose lineup
+Start game
+Tap simple buttons
+Use Next Batter
+Track score
+End game
+View summary
+
+Basic Mode should not feel like a full scorekeeping system.
+
+In Basic Mode:
+
+- Hide pitch count unless enabled
+- Hide balls and strikes unless enabled
+- Hide advanced stat names
+- Hide complex scoring options
+- Keep buttons large
+- Use plain language
+- Keep the Live Game screen clean
+- Keep the coach focused on the next action
+
+Basic Mode should show only what the coach needs right now.
+
+11. Keep Advanced Mode Thorough but Organized
+
+Advanced Mode should remain powerful, but not cluttered.
+
+Advanced Mode should support:
+
+- Balls
+- Strikes
+- Fouls
+- Pitch count
+- Hits
+- Hit types
+- Walks
+- Strikeouts
+- Outs
+- Runs
+- RBIs
+- Max pitch rules
+- Max run rules
+- Inning tracking
+- Player stats
+- Team stats
+- Analytics
+- Undo
+- Help for complex situations
+
+Do not place every advanced action on the main screen at once.
+
+Use:
+
+- More button
+- Bottom sheet
+- Action menu
+- Expandable advanced area
+- Clear grouping
+
+12. Validation After Update
+
+After making these changes, verify:
+
+- App opens correctly
+- Existing navigation still works
+- Existing lineups still load
+- User can create a lineup
+- User can save a lineup
+- User can start a Basic Mode game
+- User can start an Advanced Mode game
+- Light Mode works
+- Dark Mode works
+- System Default works
+- Help Center opens
+- Quick Start tutorial opens
+- Tutorial Library topics open
+- Troubleshooting topics open
+- Help Center search works, if added
+- Icons display correctly on Android
+- Icons display correctly on iOS
+- Basic Mode remains simple
+- Advanced Mode remains organized
+- Current batter auto-scroll still works
+- Live Game screen remains readable
+- No screen is visually cluttered
+- No existing working feature is removed
+```

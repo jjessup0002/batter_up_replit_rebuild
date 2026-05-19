@@ -13,7 +13,7 @@ interface AppContextValue {
   reloadPresets: () => Promise<void>;
 }
 
-const AppContext = createContext<AppContextValue>({
+export const AppContext = createContext<AppContextValue>({
   settings: DEFAULT_SETTINGS,
   presets: { ...GAME_RULE_PRESETS },
   isLoading: true,

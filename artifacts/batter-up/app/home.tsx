@@ -332,7 +332,7 @@ export default function HomeScreen() {
             { icon: 'bookmark', label: 'Saved Lineups', route: '/lineups' },
             { icon: 'calendar', label: 'Schedule', route: '/schedule' },
             { icon: 'bar-chart-2', label: 'Stats & History', route: '/stats' },
-            { icon: 'book-open', label: 'Tutorial', route: '/tutorial' },
+            { icon: 'help-circle', label: 'Help Center', route: '/help' },
             { icon: 'settings', label: 'Settings', route: '/settings' },
           ].map((item) => (
             <TouchableOpacity

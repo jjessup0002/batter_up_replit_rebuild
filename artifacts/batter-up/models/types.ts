@@ -1,4 +1,5 @@
 export type AppMode = 'basic' | 'advanced';
+export type DisplayMode = 'system' | 'light' | 'dark';
 export type GameType = 'tball' | 'coach_pitch' | 'kid_pitch' | 'custom';
 export type HalfInning = 'top' | 'bottom';
 export type HitType = 'single' | 'double' | 'triple' | 'homerun';
@@ -174,7 +175,7 @@ export interface AppSettings {
   requireJerseyNumber: boolean;
   requirePosition: boolean;
   preventDuplicateJerseys: boolean;
-  darkMode: boolean;
+  displayMode: DisplayMode;
   largeTextMode: boolean;
   onboardingComplete: boolean;
   autoBackupEnabled: boolean;
@@ -203,7 +204,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   requireJerseyNumber: false,
   requirePosition: false,
   preventDuplicateJerseys: false,
-  darkMode: false,
+  displayMode: 'system',
   largeTextMode: false,
   onboardingComplete: false,
   autoBackupEnabled: false,
