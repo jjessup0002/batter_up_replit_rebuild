@@ -1,45 +1,67 @@
-# [Project name]
+# Batter Up
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A mobile app for youth baseball and softball coaches to manage batting lineups, track live games, and review stats — all offline, no account needed.
 
 ## Run & Operate
 
 - `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Batter Up app runs via the `artifacts/batter-up: expo` workflow
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- Mobile: Expo (React Native) with Expo Router
+- Storage: AsyncStorage — fully offline, no backend for app data
+- API: Express 5 (api-server, not used by mobile app data)
+- Build: esbuild (API server CJS bundle)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/batter-up/` — Expo mobile app
+- `artifacts/batter-up/app/` — All screens (file-based routing)
+- `artifacts/batter-up/context/` — AppContext (settings), GameContext (game state)
+- `artifacts/batter-up/services/` — storage.ts, statsCalculator.ts
+- `artifacts/batter-up/models/types.ts` — All TypeScript models
+- `artifacts/batter-up/constants/colors.ts` — Brand tokens
+- `artifacts/batter-up/assets/images/` — Logo files
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- All data stored in AsyncStorage — no backend, no login, fully offline
+- Game state managed via useReducer in GameContext with event sourcing (events stack for undo)
+- Two modes (Basic / Advanced) controlled by AppSettings, gate feature visibility at render time
+- Batting order auto-scrolls via FlatList ref + scrollToIndex on batter change
+- Game rule presets (T-Ball, Coach Pitch, Kid Pitch, Custom) pre-fill GameSetup screen
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+Batter Up helps coaches:
+- Create, save, edit, duplicate, and load batting lineups with drag reorder
+- Run live game tracking with score, inning, current/on-deck batter display
+- Record hits, outs, walks, runs, balls, strikes, and more with one tap
+- Undo any game event
+- Auto-advance batter and inning based on configurable rules
+- View game summaries with player stats table and top performers
+- Track season stats and team record over time
+- Choose Basic Mode (simple) or Advanced Mode (detailed stats)
+- Configure via onboarding wizard (first run) or Settings screen
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Use brand colors: Primary #0A74DA, Accent #F9A825, Navy #1A2C5B
+- Logo files: batter-up-logo.png (full), batter-up-logo-small.png (icon)
+- No emojis in UI
+- Big, tappable buttons — designed for dugout use
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Do NOT add a backend database — all data must stay in AsyncStorage
+- Do NOT use the 'uuid' package — use `Date.now().toString() + Math.random().toString(36).substr(2, 9)`
+- Restart the expo workflow only when dependencies change, not for code edits (HMR handles it)
 
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See the `expo` skill for mobile app conventions

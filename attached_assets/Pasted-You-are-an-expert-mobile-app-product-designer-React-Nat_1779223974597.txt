@@ -1,0 +1,999 @@
+You are an expert mobile app product designer, React Native/Expo developer, Flutter developer, UX architect, and youth baseball/softball coaching assistant.
+
+I am building a mobile app called Batter Up.
+
+The app is for youth baseball and softball coaches who need a simple, fast, offline way to manage batting lineups, track the current batter, track score, and optionally track detailed game stats.
+
+The app must be easy enough for the average volunteer dad, mom, or little league coach to use during a live game without needing to understand complicated scorekeeping.
+
+Build this as a polished mobile app, not just a prototype.
+
+Recommended tech stack for Replit:
+Because this project is being built in Replit, use React Native with Expo unless there is a clear reason Flutter is already configured and will work better in this Replit project.
+
+The app must run on both Android and iOS.
+
+Storage requirement:
+The app must work fully offline.
+Do not require a login.
+Do not require a cloud database.
+Do not require an internet connection during games.
+Do not use Replit database, PostgreSQL, Supabase, Firebase, or any backend for app data.
+
+All data must be stored locally on the user’s phone.
+
+Recommended local storage:
+Use AsyncStorage only for small settings.
+Use SQLite, Expo SQLite, WatermelonDB, Realm, or another reliable on-device storage option for saved lineups, players, games, game events, and stats.
+
+The app should be designed so cloud sync could be added later, but do not build cloud sync now.
+
+Logo files:
+Use the attached logo files instead of placeholders.
+
+Use:
+- BatterUp_Logo as the primary/full logo
+- BatterUp_SmallLogo as the small/icon-style logo
+
+Logo usage rules:
+- Use BatterUp_Logo on the Home Screen, splash-style areas, onboarding-style areas, and any large branded header.
+- Use BatterUp_SmallLogo for smaller placements, app header icons, compact cards, saved lineup cards, and places where the full logo would be too large.
+- Do not recreate, redesign, recolor, stretch, crop awkwardly, or distort the logos.
+- Keep the logo proportions locked.
+- Add enough padding around the logo so it does not feel crowded.
+- If the logo is shown on a colored or image background, make sure it remains readable.
+- If the full logo does not display well in a specific space, use BatterUp_SmallLogo instead.
+
+Brand and style:
+The app should feel modern, energetic, clean, sports-focused, and easy to use in a dugout.
+
+Follow this style guide exactly:
+- Primary color: #0A74DA
+- Accent / highlight: #F9A825
+- Background: #F5F5F5
+- Card / surface: #FFFFFF
+- Text primary: #212121
+- Text secondary: #757575
+- Border / divider: #E0E0E0
+- Error / alert: #D32F2F
+- Typography should use a clean sans-serif font
+- H1 headers: bold, 24–28px
+- H2 subheadings: semi-bold, 18–20px
+- Body text: regular, 14–16px
+- Captions / labels: medium, 12–13px
+- Button text: bold, 14–16px
+- Use 16px or 20px horizontal padding
+- Use 8–12px vertical spacing between cards
+- Use rounded cards and buttons
+- Use simple icon styling
+- Do not hardcode random colors, spacing, font sizes, or shapes
+- Create reusable theme tokens for colors, spacing, text, radius, cards, and buttons
+
+Important UX principle:
+This app must have two experiences:
+1. Basic Mode for simple game tracking
+2. Advanced Mode for detailed stats and scorekeeping
+
+Basic Mode must stay simple and intuitive.
+Advanced Mode can be thorough, but it must not make Basic Mode feel complicated.
+
+First-time user onboarding wizard:
+The first time the user opens the app, show a short onboarding wizard.
+
+The wizard should explain:
+- Batter Up can be used in Basic Mode or Advanced Mode
+- Basic Mode is best for quick lineup, score, inning, and next batter tracking
+- Advanced Mode is best for tracking balls, strikes, pitch limits, hits, walks, outs, player stats, and analytics
+- The coach can switch modes later in Settings or before starting a game
+- The app works offline and saves data on the phone
+
+Wizard screens:
+1. Welcome screen
+   - Show BatterUp_Logo
+   - Text: “Welcome to Batter Up”
+   - Text: “A simple way to manage your lineup and keep the game moving.”
+
+2. Choose Your Style screen
+   - Show two large choice cards:
+     - Basic Mode
+     - Advanced Mode
+
+3. Basic Mode card copy:
+   - “Best for quick games”
+   - “Track lineup, score, inning, current batter, and game summary.”
+   - “Recommended for most new users.”
+
+4. Advanced Mode card copy:
+   - “Best for detailed tracking”
+   - “Track balls, strikes, pitch rules, hits, walks, outs, runs, player stats, and analytics.”
+
+5. Defaults screen
+   - Ask user to choose a default game type:
+     - T-Ball
+     - Coach Pitch
+     - Kid Pitch
+     - Custom
+   - Use this choice to prefill game settings.
+
+6. Finish screen
+   - Text: “You’re ready to start.”
+   - Button: “Create First Lineup”
+   - Secondary button: “Go to Home”
+
+The onboarding wizard should only show automatically the first time the app is opened.
+The user should be able to revisit it from Settings as “Setup Guide.”
+
+Mode switching:
+The user must be able to switch between Basic Mode and Advanced Mode:
+- During onboarding
+- In Settings
+- On the Game Setup Screen before starting a game
+
+Changing the default mode should affect future games.
+Changing mode during a game should be allowed only through a clear “Game Options” menu and should not delete existing game data.
+
+App purpose:
+Batter Up helps coaches:
+- Create lineups
+- Save lineups
+- Load saved lineups
+- Edit lineups
+- Reorder players
+- Track the current batter
+- Track the on-deck batter
+- Move to the next or previous batter
+- Track score
+- Track innings
+- Track top and bottom of innings
+- Track balls, strikes, pitches, hits, walks, outs, runs, and other game events in Advanced Mode
+- Automatically move to the next batter when the plate appearance is complete
+- Automatically move to the next half-inning when outs or run limits are reached
+- Track player-level stats
+- Track team-level stats
+- Review game summaries
+- Track analytics over time
+
+App navigation:
+The app should include these main screens:
+- Onboarding Wizard
+- Home Screen
+- Saved Lineups Screen
+- Create/Edit Lineup Screen
+- Game Setup Screen
+- Live Game Screen
+- Game Summary Screen
+- Player Stats Screen
+- Team Analytics Screen
+- Settings Screen
+
+Home Screen:
+The Home Screen should show:
+- BatterUp_Logo
+- App title: Batter Up
+- Short tagline: Build your lineup. Track the next batter. Keep the game moving.
+- Primary button: Start Game
+- Secondary buttons:
+  - Create Lineup
+  - Saved Lineups
+  - Stats & History
+  - Settings
+
+If a saved lineup exists, show a quick-start card:
+- Last Used Lineup
+- Team Name
+- Number of players
+- Start Game button
+- Edit button
+
+Basic Mode Home Screen should feel very simple.
+Do not show advanced stats or complicated options on the Home Screen.
+
+Saved Lineups Screen:
+The coach must be able to save multiple lineups locally on the phone.
+
+A saved lineup should include:
+- Lineup ID
+- Lineup name
+- Team name
+- Player list
+- Batting order
+- Jersey numbers
+- Positions
+- Optional notes
+- Date created
+- Date last used
+
+Saved lineup card example:
+Warren County 8U
+12 Players
+Last used: May 19, 2026
+
+Buttons:
+- Start Game
+- Edit
+- Duplicate
+- Delete
+
+The coach should be able to:
+- Create new lineup
+- Edit saved lineup
+- Duplicate lineup
+- Delete lineup
+- Rename lineup
+- Load lineup for a game
+- Reorder players
+- Add players
+- Remove players
+- Mark players active or inactive
+
+Warn before deleting a saved lineup.
+
+Create/Edit Lineup Screen:
+The coach should be able to enter:
+- Player Name
+- Jersey Number
+- Position
+
+Buttons:
+- Add Player
+- Save Lineup
+
+Each player card should show:
+- Batting order number
+- Player name
+- Jersey number
+- Position
+
+Each player card should include:
+- Move Up
+- Move Down
+- Delete Player
+- Active/Inactive toggle
+
+Use icons:
+- Up arrow
+- Down arrow
+- Trash can
+- Checkmark or toggle for active status
+
+Validation:
+- Do not allow saving an empty lineup
+- Player name is required
+- Jersey number and position can be optional unless the coach chooses to require them in settings
+- Prevent duplicate jersey numbers only if the coach enables that validation
+- Show friendly validation messages
+- Do not use harsh error language
+
+Example validation messages:
+- “Add at least one player before saving.”
+- “Player name is required.”
+- “That jersey number is already used.”
+
+Player model:
+Each player should include:
+- Player ID
+- Player name
+- Jersey number
+- Primary position
+- Optional secondary position
+- Active/inactive status
+- Batting order position
+- Created date
+
+Suggested model:
+Player {
+  id
+  name
+  jerseyNumber
+  primaryPosition
+  secondaryPosition
+  isActive
+  battingOrder
+  createdAt
+}
+
+Lineup model:
+Each lineup should include:
+- Lineup ID
+- Lineup name
+- Team name
+- List of players
+- Created date
+- Updated date
+- Last used date
+- Favorite status
+
+Suggested model:
+Lineup {
+  id
+  name
+  teamName
+  players
+  isFavorite
+  createdAt
+  updatedAt
+  lastUsedAt
+}
+
+Game Setup Screen:
+Before starting a game, the coach should choose or confirm:
+- Lineup
+- Opponent name
+- Home or away
+- Game mode: Basic or Advanced
+- Number of innings
+- Max runs per half inning
+- Outs per half inning
+- Strike rule
+- Ball rule
+- Pitch limit rule
+- T-ball rule
+- Coach pitch rule
+- Kid pitch rule
+- Mercy rule, optional
+- Default settings profile
+
+The coach should not have to configure everything every time.
+
+The Game Setup Screen should default to the user’s saved preferences from onboarding or settings.
+
+Basic Mode setup should only ask for:
+- Lineup
+- Opponent name, optional
+- Home or away
+- Number of innings
+- Max runs per inning, optional
+- Start Game
+
+Advanced settings should be hidden under:
+- “Advanced Rules”
+- “Edit Game Rules”
+- “More Settings”
+
+Game rule presets:
+The app should support saved game rule presets.
+
+Preset examples:
+- T-Ball Default
+- Coach Pitch 6U
+- Coach Pitch 8U
+- Kid Pitch 10U
+- Custom League Rules
+
+T-Ball preset example:
+- Mode: Basic
+- Balls: Off
+- Strikes: Optional
+- Pitch count: Off
+- Swing until hit: On
+- Outs tracked: Optional
+- Max runs per inning: 6
+- Auto next batter after hit or out: On
+
+Coach Pitch preset example:
+- Mode: Advanced
+- Balls: Off
+- Strikes: Optional
+- Max pitches per batter: 6
+- Foul on final pitch allows another pitch: Optional
+- Max runs per inning: 6
+- Outs per half inning: 3
+- Auto next batter after hit, out, strikeout, or max pitches
+
+Kid Pitch preset example:
+- Mode: Advanced
+- Balls: 4
+- Strikes: 3
+- Outs per half inning: 3
+- Max runs per inning: Optional
+- Walks enabled
+- Strikeouts enabled
+- Hit by pitch enabled
+- Steals optional
+
+Settings Screen:
+The Settings Screen should allow the coach to set:
+- Preferred mode: Basic or Advanced
+- Default game preset
+- Default number of innings
+- Default max runs per half inning
+- Default outs per half inning
+- Default balls for walk
+- Default strikes for strikeout
+- Default max pitches per batter
+- Default home/away preference
+- Require jersey number: yes/no
+- Require position: yes/no
+- Prevent duplicate jersey numbers: yes/no
+- Show onboarding wizard again
+- Large text mode
+- Dark mode, optional
+
+The app should remember these settings locally.
+
+When starting a new game, prefill the Game Setup Screen with these defaults.
+
+Live Game Screen:
+The Live Game Screen is the most important screen.
+
+It must be extremely clear and easy to use during a game.
+
+It should show:
+- Current inning
+- Top or bottom
+- Score
+- Current batter
+- On-deck batter
+- Balls, if enabled
+- Strikes, if enabled
+- Outs, if enabled
+- Runs this half inning
+- Pitch count, if enabled
+- Main action buttons
+- Undo button
+
+Basic Mode Live Game Screen:
+Basic Mode must prioritize simplicity.
+
+Basic Mode should show:
+- Inning
+- Score
+- Current batter
+- On deck batter
+- Runs this inning
+- Simple lineup list
+- Big action buttons
+
+Basic Mode live buttons:
+- Hit
+- Out
+- Walk
+- Run Scored
+- Next Batter
+- Undo
+- End Half-Inning
+
+Optional Basic Mode buttons:
+- Score +1
+- Score -1
+- Opponent +1
+- Opponent -1
+
+In Basic Mode, do not show:
+- Slugging percentage
+- OPS
+- Complex scorekeeping abbreviations
+- Large stat tables
+- Too many event choices at once
+
+Advanced Mode Live Game Screen:
+Advanced Mode should show:
+- Inning
+- Score
+- Current batter
+- On deck batter
+- Balls
+- Strikes
+- Outs
+- Pitch count
+- Runs this inning
+- Optional bases
+- Action buttons
+- More menu
+
+Advanced Mode live buttons:
+- Ball
+- Strike
+- Foul
+- Hit
+- Out
+- Walk
+- Hit By Pitch
+- Run Scored
+- Undo
+- More
+
+The More button should open:
+- Single
+- Double
+- Triple
+- Home Run
+- Reached on Error
+- Fielder’s Choice
+- Sacrifice
+- Stolen Base
+- Caught Stealing
+- RBI
+- Runner Out
+- Custom Event
+
+Automatic next batter logic:
+The app should automatically move to the next batter when an event completes the plate appearance.
+
+Events that should move to the next batter:
+- Hit
+- Out
+- Strikeout
+- Walk
+- Hit by pitch
+- Reached on error
+- Fielder’s choice
+- Sacrifice
+- Max pitches reached, if enabled
+- Manual Next Batter
+
+Events that should not automatically move to the next batter:
+- Ball, unless it causes a walk
+- Strike, unless it causes a strikeout
+- Foul, unless league rules say it counts as final strike
+- Run scored
+- Score adjustment
+- Stolen base
+
+Ball and strike logic:
+The app should support custom rules.
+
+Default baseball rules:
+- 4 balls = walk
+- 3 strikes = strikeout
+
+Supported custom rules:
+- No walks
+- No strikeouts
+- 6 pitches max
+- Swing until hit
+- Foul on final pitch gives another pitch
+- Foul on final strike counts as out
+- Foul on final strike does not count as strikeout
+- Coach manually chooses result when pitch limit is reached
+
+Pitch limit logic:
+For coach pitch leagues, support maximum pitches per batter.
+
+Example:
+Max pitches: 6
+
+If the batter reaches the max pitch count, the app should apply the selected league rule:
+- Batter is out
+- Batter gets one more pitch if final pitch was foul
+- Coach manually chooses result
+
+Max runs per half inning:
+The app should support max runs per half inning.
+
+Example:
+Max runs per half inning: 6
+
+When the team reaches the limit, the app should prompt:
+“Run limit reached. End this half-inning?”
+
+Options:
+- End Half-Inning
+- Keep Playing
+- Undo Last Run
+
+If enabled, the app should automatically move to the next half inning.
+
+Inning logic:
+The app should track:
+- Inning number
+- Top of inning
+- Bottom of inning
+- Current half inning
+- Home team
+- Away team
+- Outs
+- Runs this half inning
+
+If the user’s team is away:
+- The user bats in the top half of the inning
+
+If the user’s team is home:
+- The user bats in the bottom half of the inning
+
+The app should move:
+Top 1st → Bottom 1st → Top 2nd → Bottom 2nd
+
+When the required number of outs is reached, or the max run limit is reached, the app should prompt or automatically move to the next half inning depending on settings.
+
+At the start of each new half inning:
+- Balls reset to 0
+- Strikes reset to 0
+- Outs reset to 0
+- Runs this half inning reset to 0
+- Pitch count resets to 0
+- Current batter remains wherever the lineup rotation left off
+- Batting order continues naturally across innings
+
+Score tracking:
+The app should track:
+- User team score
+- Opponent score
+- Runs by inning
+- Runs this half inning
+- Final score
+
+The coach should be able to manually adjust score.
+
+Buttons:
+- +1 Run
+- -1 Run
+- Opponent +1
+- Opponent -1
+
+Undo feature:
+The app must include an undo button.
+
+Undo should reverse the most recent game event.
+
+Examples:
+- Undo strike
+- Undo ball
+- Undo hit
+- Undo out
+- Undo run
+- Undo next batter
+- Undo inning change
+
+The app should store recent game actions in an event history stack.
+
+Game event model:
+Every action during a game should be stored as a game event.
+
+Example event types:
+- Ball
+- Strike
+- Foul
+- Hit
+- Single
+- Double
+- Triple
+- HomeRun
+- Out
+- Strikeout
+- Walk
+- HitByPitch
+- RunScored
+- RBI
+- InningAdvanced
+- HalfInningEnded
+- ScoreAdjusted
+- PlayerAdvanced
+- Undo
+
+Suggested model:
+GameEvent {
+  id
+  gameId
+  playerId
+  eventType
+  timestamp
+  inning
+  halfInning
+  metadata
+}
+
+Player-level stats:
+The app should track stats for each player.
+
+Basic stats:
+- At bats
+- Plate appearances
+- Hits
+- Runs
+- Outs
+- Walks
+- Strikeouts
+- RBIs
+
+Advanced stats:
+- Singles
+- Doubles
+- Triples
+- Home runs
+- Hit by pitch
+- Reached on error
+- Fielder’s choice
+- Sacrifices
+- Total bases
+- Batting average
+- On-base percentage
+- Slugging percentage
+- OPS
+- Contact rate
+- Strikeout rate
+- Walk rate
+
+The app should calculate these automatically from game events.
+
+The coach should not have to manually calculate anything.
+
+Team-level stats:
+At the end of the game, the app should show:
+- Final score
+- Runs by inning
+- Total hits
+- Total runs
+- Total walks
+- Total strikeouts
+- Total outs
+- Team batting average
+- On-base percentage
+- Best offensive inning
+- Players with most hits
+- Players with most runs
+- Players with most RBIs
+
+Basic Mode summary should show:
+- Final score
+- Runs scored
+- Hits
+- Outs
+- Walks
+- Top performers
+
+Game Summary Screen:
+After ending a game, the coach should see a clean summary.
+
+The screen should include:
+- Game date
+- Team name
+- Opponent
+- Final score
+- Win/loss/tie, if opponent score tracked
+- Runs by inning
+- Team totals
+- Player stat table
+- Game notes
+
+Example:
+Batter Up vs Tigers
+May 19, 2026
+
+Final Score
+Batter Up 8
+Tigers 6
+
+Top Performers
+Mason Carter: 3 hits, 2 runs
+Eli Thompson: 2 RBIs
+Noah Brooks: 2 walks
+
+Buttons:
+- Save Game
+- Share Summary
+- View Player Stats
+- Back Home
+
+Stats and analytics:
+The app should track progress over time locally on the device.
+
+Analytics should include:
+- Games played
+- Team record
+- Total runs
+- Average runs per game
+- Total hits
+- Average hits per game
+- Team batting average
+- Walk rate
+- Strikeout rate
+- Player trends
+- Top hitters
+- Most improved players
+
+Player analytics should include:
+- Games played
+- Plate appearances
+- Hits
+- Runs
+- RBIs
+- Walks
+- Strikeouts
+- Batting average
+- On-base percentage
+- Recent game trend
+
+Keep analytics simple and coach-friendly.
+
+Good chart ideas:
+- Runs per game
+- Hits per game
+- Player batting average trend
+- Strikeouts over time
+- Walks over time
+
+Auto-scroll requirement:
+On the Live Game Screen, when the coach taps Next Batter or Previous Batter, the batting order list must automatically scroll so the current batter is visible on screen.
+
+This is required.
+
+Example problem to solve:
+If batter #5 is the last visible player on the screen, tapping Next Batter moves to batter #6. The screen must automatically scroll down so batter #6 is visible and preferably centered or near the top.
+
+The app should ensure:
+- Current batter is always visible
+- On-deck batter is visible when possible
+- The coach should not need to manually scroll after changing batters
+
+Implementation expectation:
+- Use a scroll controller tied to the batting order list
+- When currentBatterIndex changes, scroll to that player’s card
+
+Preferred behavior:
+After tapping Next Batter:
+- Update current batter
+- Update on-deck batter
+- Automatically scroll list to current batter
+- Keep animation smooth and quick
+
+Suggested timing:
+- Scroll animation duration: 250–350ms
+- Scroll curve: easeInOut
+
+This is a required usability validation because during a live game the coach should always be able to see who is currently batting without manually scrolling.
+
+Additional coach-friendly features:
+Add these if they fit cleanly:
+- Favorite lineup
+- Duplicate previous game setup
+- Quick correction buttons
+- End game confirmation
+- Game notes
+- Player inactive toggle
+- Bench player support
+- Share lineup
+- Share game summary
+- Parent-friendly lineup view
+- Large text mode
+- Dark mode
+- Game timer
+
+Future features to leave room for but not necessarily build immediately:
+- Export simple PDF
+- Defensive positions by inning
+- Pitcher tracking
+- Cloud backup
+- Multi-device sync
+- Multiple teams
+
+Simplicity rules:
+The app must not feel complicated.
+
+Rules:
+- Big buttons
+- Few choices on screen at once
+- Plain language
+- Easy undo
+- No required account
+- No required internet
+- No complex baseball abbreviations unless Advanced Mode is enabled
+- Basic Mode should be usable within 30 seconds
+- Avoid making the coach answer too many questions before starting a game
+- Keep Advanced Mode powerful but organized
+- Never let Advanced Mode clutter Basic Mode
+
+Best flow:
+Open app
+First-time user sees onboarding wizard
+User chooses Basic or Advanced Mode
+User creates or loads lineup
+User confirms simple game settings
+User starts game
+User tracks the game with large simple buttons
+User ends game and sees a clean summary
+
+Recommended file structure:
+src/
+  app/
+  assets/
+  components/
+    buttons/
+    cards/
+    layout/
+    stats/
+  screens/
+    OnboardingScreen
+    HomeScreen
+    SavedLineupsScreen
+    LineupEditorScreen
+    GameSetupScreen
+    LiveGameScreen
+    GameSummaryScreen
+    PlayerStatsScreen
+    TeamAnalyticsScreen
+    SettingsScreen
+  models/
+    Player
+    Lineup
+    Game
+    GameEvent
+    GameSettings
+    PlayerStats
+    TeamStats
+  services/
+    localStorageService
+    gameEngineService
+    statsCalculatorService
+    settingsService
+  theme/
+    colors
+    spacing
+    typography
+    appTheme
+  utils/
+    baseballRules
+    dateHelpers
+    statFormulas
+
+Game engine:
+Create a dedicated game engine service.
+
+It should control:
+- Current batter
+- On-deck batter
+- Balls
+- Strikes
+- Outs
+- Runs
+- Score
+- Inning
+- Top/bottom
+- Pitch count
+- Auto next batter
+- Auto inning change
+- Run limit
+- Undo
+- Stats generation
+
+The UI should not contain the game rules directly.
+
+The UI should call simple methods like:
+recordBall()
+recordStrike()
+recordFoul()
+recordHit()
+recordOut()
+recordWalk()
+recordRun()
+advanceBatter()
+undoLastEvent()
+endHalfInning()
+
+Build priority:
+Do not try to build every future feature at once if it causes quality problems.
+
+Build in this order:
+1. Polished theme, navigation, and onboarding wizard
+2. Local storage foundation
+3. Create, save, edit, delete, and load lineups
+4. Basic Mode live game tracking
+5. Auto-scroll current batter behavior
+6. Game setup defaults and settings
+7. Game summary
+8. Advanced Mode game tracking
+9. Player and team stats
+10. Analytics over time
+
+Quality expectations:
+- The UI should look polished and consistent
+- Buttons should be large enough to tap during a game
+- The app should avoid clutter
+- Empty states should be friendly
+- Validation should be clear
+- Data should persist after closing and reopening the app
+- The app should not crash if there are no lineups yet
+- The app should not crash with one-player or two-player test lineups
+- The app should handle long lineups gracefully
+- The current batter must always remain visible after batter changes
+
+Final product vision:
+The future version of Batter Up should be a simple offline lineup and game tracking app for youth baseball and softball coaches.
+
+It should support two kinds of users:
+- The basic coach who only wants lineup, score, inning, and next batter
+- The advanced coach who wants balls, strikes, pitch limits, player stats, team stats, and analytics
+
+The app should save lineups, load them easily, remember default league rules, track game events, automatically advance batters and innings, enforce optional run limits, and produce useful team and player performance summaries after each game.
+
+The app should be easy enough for the average volunteer coach to use during a live game without needing to understand complicated scorekeeping.

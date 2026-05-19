@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "Batter Up",
+    "slug": "batter-up",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "batter-up",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/batter-up-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1A2C5B"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.batterup.app"
+    },
+    "android": {
+      "package": "com.batterup.app"
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}
