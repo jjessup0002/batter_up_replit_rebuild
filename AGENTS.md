@@ -22,3 +22,11 @@ A slower structured workflow is preferred when it materially reduces usage and r
 - Correctness, security, data safety, and supported platform practices take precedence over usage savings.
 - If the lowest-usage route is blocked or substantially less reliable, use the next-lowest-usage viable route without waiting for permission.
 - Session-specific user instructions override this file.
+
+## Lightweight Work Audit
+
+Default classification is **STAT Central**. Before substantive work, classify the task as `WCWD`, `STAT Central`, or `BG Cyber Deals`; if unclear, ask the user.
+
+Maintain `docs/work-audit/YYYY-MM-DD.md` using America/Chicago time. Log only natural checkpoints: start, meaningful milestone or decision, blocker or scope change, and completion or handoff. Use occasional `[HH:MM CT]` timestamps and a few bullets covering classification, task, outcome, important files or systems, validation, and next step.
+
+Do not log every command, API call, browser action, file read, or minor edit. Logging must not interrupt or materially slow delivery; catch up at the next checkpoint. A later AI may use Git history, diffs, file timestamps, issues, PRs, and project artifacts for added detail. Do not record secrets or sensitive data.
