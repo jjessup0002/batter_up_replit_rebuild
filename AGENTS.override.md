@@ -64,3 +64,17 @@ Before the final handoff, ensure today's material work is represented by at leas
 ## Priority
 
 The user generally prefers slower execution over substantially higher model usage. Correctness, security, supported platform practices, and data safety still take precedence. Session-specific user instructions may override this file.
+
+## Repository-specific instructions
+
+Before planning, implementing, or giving a substantive response, read the repository's root `AGENTS.md` and follow it as active project guidance. Follow both files; this override remains higher priority for browser/tool policy, work-audit policy, and GitHub issue kickoff behavior.
+
+## GitHub issue kickoff
+
+At the start of each new Codex chat:
+
+1. Check the kickoff prompt for a GitHub issue URL or issue number for this repository.
+2. If an issue is provided, read the full issue and its comments before planning or implementation. Use it as the primary source for scope and acceptance criteria, subject to newer explicit user instructions.
+3. If no issue is provided, continue with the user's request and include this one gentle reminder in the first response only: "For future work, starting with a GitHub issue will help keep the requirements and history together."
+
+Do not block the task, require the user to create an issue, or repeat the reminder later in the chat.
