@@ -1,0 +1,117 @@
+name: Codex Work Item
+description: Capture an enhancement, bug fix, investigation, maintenance task, or documentation request for Codex.
+title: "[Codex] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Provide the clearest information available. ChatGPT can also create this issue for you using the GitHub Issue Intake skill.
+
+  - type: dropdown
+    id: work_type
+    attributes:
+      label: Work type
+      options:
+        - Bug fix
+        - Enhancement
+        - Investigation
+        - Maintenance or refactor
+        - Documentation
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Briefly explain what needs to be changed or investigated.
+      placeholder: Describe the request in plain language.
+    validations:
+      required: true
+
+  - type: textarea
+    id: business_reason
+    attributes:
+      label: Why this matters
+      description: Explain the user, operational, ministry, business, or technical reason for the work.
+
+  - type: textarea
+    id: current_behavior
+    attributes:
+      label: Current behavior
+      description: What happens today? For a new enhancement, describe the current limitation or manual process.
+
+  - type: textarea
+    id: desired_behavior
+    attributes:
+      label: Desired behavior
+      description: Describe what should happen when the work is complete.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: For a problem, list the shortest reliable steps that show it. Include environment, role, browser, device, or test data when relevant.
+      placeholder: |
+        1. Go to...
+        2. Select...
+        3. Observe...
+
+  - type: textarea
+    id: requirements
+    attributes:
+      label: Requirements and scope
+      description: List required behavior, important rules, and anything that must not change.
+      placeholder: |
+        - Requirement 1
+        - Requirement 2
+        - Out of scope: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      description: Add specific, testable outcomes Codex can verify before completion.
+      placeholder: |
+        - [ ] Expected outcome 1
+        - [ ] Expected outcome 2
+        - [ ] Relevant tests and checks pass
+        - [ ] Documentation is updated when needed
+    validations:
+      required: true
+
+  - type: textarea
+    id: supporting_materials
+    attributes:
+      label: Supporting details and files
+      description: Drag screenshots, documents, exports, logs, or examples here. Add links to related issues, designs, emails, or source material.
+
+  - type: textarea
+    id: technical_notes
+    attributes:
+      label: Technical notes or suspected files
+      description: Add known file paths, components, APIs, database objects, constraints, risks, or implementation ideas. Leave blank when unknown.
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Normal
+        - High
+        - Urgent
+        - Not yet prioritized
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety check
+      options:
+        - label: No passwords, API keys, tokens, private keys, connection strings, or unredacted credentials are included.
+          required: true
