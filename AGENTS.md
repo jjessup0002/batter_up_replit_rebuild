@@ -30,3 +30,20 @@ Default classification is **STAT Central**. Before substantive work, classify th
 Maintain `docs/work-audit/YYYY-MM-DD.md` using America/Chicago time. Log only natural checkpoints: start, meaningful milestone or decision, blocker or scope change, and completion or handoff. Use occasional `[HH:MM CT]` timestamps and a few bullets covering classification, task, outcome, important files or systems, validation, and next step.
 
 Do not log every command, API call, browser action, file read, or minor edit. Logging must not interrupt or materially slow delivery; catch up at the next checkpoint. A later AI may use Git history, diffs, file timestamps, issues, PRs, and project artifacts for added detail. Do not record secrets or sensitive data.
+
+## Risk-based validation and review policy
+
+Validation must be proportional to the change's risk and the project's current development stage.
+
+- During implementation, run the smallest focused checks that exercise the changed behavior. Do not rerun the full suite after every small repair.
+- After the work is substantially complete, run the repository's standard merge gate once: formatting, static analysis, relevant tests, and the build required for the affected platform.
+- Reserve broad device, browser, visual, accessibility, migration, performance, and compatibility matrices for milestone gates, release candidates, or changes that directly affect those risks.
+- Request one final automated review after substantive completion. Address merge-blocking findings, but do not enter an unlimited review-and-retest loop. Request another review only when a fix materially changes the risk area or when a blocking finding needs confirmation.
+- Classify findings by actual impact:
+  - **Merge-blocking:** security/privacy exposure, data loss or corruption, unsafe migration, crash, broken primary workflow, invalid external side effect, or failure of a required merge check.
+  - **Milestone-required:** important recovery, accessibility, compatibility, performance, or edge-condition work that can be tracked without blocking the current issue.
+  - **Follow-up:** polish, rare theoretical edge cases, optional optimization, or unchanged permutations.
+- Automated severity labels such as P1 or P2 do not automatically block merging; evaluate whether the finding meets the merge-blocking definition.
+- Issue-specific proportional testing guidance overrides generic broad validation language. For docs-only or planning work, validate the documents, schemas, links, and examples rather than building unrelated application targets.
+- Once acceptance criteria are met, the standard merge gate passes, and no genuine merge-blocking defect remains, merge and continue. Convert non-blocking findings into focused follow-up issues.
+- Never reduce rigor for authentication, payments, destructive operations, database/save migrations, privacy, child safety, production deployment, or other changes with credible irreversible consequences.
